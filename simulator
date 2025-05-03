@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>韋伯工業區位理論模擬器</title>
+    <style>
+        :root {
+            --primary-color: #5D5CDE;
+            --primary-color-dark: #4a49b0;
+            --background-color: #f8f9fa;
+            --card-color: #ffffff;
+            --text-color: #333333;
+            --secondary-text: #666666;
+            --border-color: #ddd;
+            --labor-color: rgba(255, 180, 0, 0.8);
+            --labor-bg: rgba(255, 240, 200, 0.3);
+            --agglom-color: rgba(0, 120, 255, 0.8);
+            --agglom-bg: rgba(200, 240, 255, 0.3);
+        }
+
+        .dark {
+            --primary-color: #7b7aef;
+            --primary-color-dark: #6665d9;
+            --background-color: #181818;
+            --card-color: #292929;
+            --text-color: #e0e0e0;
+            --secondary-text: #b0b0b0;
+            --border-color: #444;
+            --labor-color: rgba(255, 180, 0, 0.9);
+            --labor-bg: rgba(255, 180, 0, 0.15);
+            --agglom-color: rgba(70, 150, 255, 0.9);
+            --agglom-bg: rgba(70, 150, 255, 0.15);
+        }
+
+        html, body {
+            font-family: 'Microsoft YaHei', '微軟正黑體', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .title-container {
+            flex: 0 0 auto;
+            margin-bottom: 10px;
+        }
+
+        h1, h2 {
+            color: var(--text-color);
+            margin-top: 0;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .left-column {
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .map-section, .control-section, .results-section {
+            background: var(--card-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: background-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--background-color);
+        }
+
+        .scrollable-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-track {
+            background: var(--background-color);
+            border-radius: 4px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .results-section {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 300px;
+            background-color: var(--card-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        canvas {
+            display: block;
+            background-color: var(--card-color);
+            transition: background-color 0.3s ease;
+        }
+
+        .controls {
+            margin-top: 15px;
+        }
+
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 15px;
+            align-items: center;
+        }
+
+        .full-width {
+            grid-column: 1 / span 2;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 3px;
+            font-weight: bold;
+            font-size: 14px;
+            color: var(--text-color);
+            transition: color 0.3s ease;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+            accent-color: var(--primary-color);
+        }
+
+        .slider-value {
+            font-size: 14px;
+            color: var(--secondary-text);
+            transition: color 0.3s ease;
+        }
+
+        select {
+            width: 100%;
+            margin-bottom: 5px;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-color);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--primary-color-dark);
+        }
+
+        .results {
+            padding: 10px;
+            background-color: var(--background-color);
+            border-radius: 4px;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .left-column, .results-section {
+                grid-column: 1;
+            }
+            .results-section {
+                grid-row: auto;
+            }
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            .button-group {
+                justify-content: center;
+            }
+        }
+
+        #debug-info {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: var(--background-color);
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .factor-card {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: var(--card-color);
+            transition: background-color 0.3s ease;
+        }
+
+        .factor-card h4 {
+            margin-top: 0;
+            color: var(--text-color);
+            transition: color 0.3s ease;
+        }
+
+        .factor-slider {
+            margin-bottom: 8px;
+        }
+
+        .labor-control {
+            border-left: 4px solid var(--labor-color);
+            padding-left: 8px;
+        }
+
+        .agglom-control {
+            border-left: 4px solid var(--agglom-color);
+            padding-left: 8px;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.3s ease;
+        }
+
+        .info-panel {
+            background-color: var(--card-color);
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--primary-color);
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .loading-indicator {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        /* 分隔線樣式 */
+        .resizer {
+            position: relative;
+            background-color: var(--background-color);
+            transition: background-color 0.3s ease;
+        }
+
+        .resizer:hover {
+            background-color: var(--primary-color);
+        }
+
+        .horizontal-resizer {
+            height: 8px;
+            cursor: ns-resize;
+            margin: -4px 0;
+            z-index: 5;
+        }
+
+        .vertical-resizer {
+            width: 8px;
+            cursor: ew-resize;
+            margin: 0 -4px;
+            z-index: 5;
+        }
+
+        .resizer-handle {
+            position: absolute;
+            background-color: var(--primary-color);
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+
+        .horizontal-resizer .resizer-handle {
+            height: 2px;
+            width: 40px;
+            top: 3px;
+            left: calc(50% - 20px);
+        }
+
+        .vertical-resizer .resizer-handle {
+            width: 2px;
+            height: 40px;
+            left: 3px;
+            top: calc(50% - 20px);
+        }
+
+        .resizer:hover .resizer-handle {
+            opacity: 1;
+        }
+
+        /* 防止文字被選中 */
+        .resizer, .resizer-handle {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="title-container">
+            <h1>韋伯工業區位理論互動模擬器</h1>
+        </div>
+        <div class="container" id="main-container" style="grid-template-columns: 67% 33%; flex: 1; overflow: hidden;">
+        <div class="left-column" id="left-column">
+            <div class="map-section" id="map-section" style="height: 38%">
+                <div id="canvas-container">
+                    <canvas id="weberCanvas" width="550" height="400"></canvas>
+                </div>
+            </div>
+
+            <!-- 水平分隔線 -->
+            <div class="resizer horizontal-resizer" id="map-control-resizer">
+                <div class="resizer-handle"></div>
+            </div>
+
+            <div class="control-section" id="control-section">
+                <div class="scrollable-content">
+                    <div class="controls">
+                        <div class="parameters-grid">
+                    <label for="material-a-weight">原料A重量 (噸)</label>
+                    <div class="slider-container">
+                        <input type="range" id="material-a-weight" min="1" max="10" value="3" step="0.1">
+                        <span id="material-a-weight-value" class="slider-value">3.0</span>
+                    </div>
+
+                    <label for="material-b-weight">原料B重量 (噸)</label>
+                    <div class="slider-container">
+                        <input type="range" id="material-b-weight" min="1" max="10" value="2" step="0.1">
+                        <span id="material-b-weight-value" class="slider-value">2.0</span>
+                    </div>
+
+                    <label for="weight-loss">重量損失率 (%)</label>
+                    <div class="slider-container">
+                        <input type="range" id="weight-loss" min="0" max="90" value="30" step="5">
+                        <span id="weight-loss-value" class="slider-value">30%</span>
+                    </div>
+
+                    <label for="transport-cost">運輸成本 (每公里/噸)</label>
+                    <div class="slider-container">
+                        <input type="range" id="transport-cost" min="1" max="10" value="5" step="0.5">
+                        <span id="transport-cost-value" class="slider-value">5.0</span>
+                    </div>
+
+                    <label for="labor-cost-weight">勞動力成本權重</label>
+                    <div class="slider-container">
+                        <input type="range" id="labor-cost-weight" min="0" max="1" value="0.3" step="0.1">
+                        <span id="labor-cost-weight-value" class="slider-value">0.3</span>
+                    </div>
+
+                    <label for="labor-savings" class="labor-label">勞動力優勢區</label>
+                    <div class="slider-container">
+                        <select id="labor-savings">
+                            <option value="none">無勞動力優勢區</option>
+                            <option value="light">輕微 (10%)</option>
+                            <option value="moderate">中等 (20%)</option>
+                            <option value="significant">顯著 (30%)</option>
+                            <option value="dominant">主導 (40%)</option>
+                        </select>
+                    </div>
+
+                    <div id="labor-intensity-container" class="full-width" style="display:none;">
+                        <label for="labor-intensity">勞動力密集程度</label>
+                        <div class="slider-container">
+                            <input type="range" id="labor-intensity" min="0" max="100" value="50" step="10">
+                            <span id="labor-intensity-value" class="slider-value">50%</span>
+                        </div>
+                    </div>
+
+                    <label for="agglomeration" class="agglom-label">聚集經濟效應</label>
+                    <div class="slider-container">
+                        <select id="agglomeration">
+                            <option value="none">無聚集效應</option>
+                            <option value="light">輕微 (5%)</option>
+                            <option value="moderate">中等 (15%)</option>
+                            <option value="significant">顯著 (25%)</option>
+                        </select>
+                    </div>
+
+                    <div id="specialization-container" class="full-width" style="display:none;">
+                        <label for="industry-specialization">產業專業化程度</label>
+                        <div class="slider-container">
+                            <input type="range" id="industry-specialization" min="0" max="100" value="50" step="10">
+                            <span id="industry-specialization-value" class="slider-value">50%</span>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                </div>
+                <div class="button-group">
+                    <button id="calculate-btn">計算最佳區位</button>
+                    <button id="reset-btn">重置模擬</button>
+                    <button id="toggle-debug" style="background-color:#888">顯示調試信息</button>
+                    <button id="show-theory-btn">顯示韋伯理論說明</button>
+                </div>
+
+                <div id="debug-info"></div>
+            </div>
+        </div>
+
+        <!-- 垂直分隔線 -->
+        <div class="resizer vertical-resizer" id="column-resizer">
+            <div class="resizer-handle"></div>
+        </div>
+
+        <div class="results-section" id="results-section">
+            <h2>分析結果</h2>
+            <div class="scrollable-content">
+
+            <div id="theory-explanation" style="display:none;" class="info-panel">
+                <h3>韋伯工業區位理論</h3>
+                <p>阿爾弗雷德·韋伯(Alfred Weber)於1909年提出的理論，主要考慮三個因素：</p>
+                <ol>
+                    <li><strong>運輸成本</strong>：原料→工廠→市場的距離和物料重量</li>
+                    <li><strong>勞動力成本</strong>：某些地區可能有較低的勞動力成本</li>
+                    <li><strong>聚集經濟</strong>：企業群聚可能帶來的成本節約</li>
+                </ol>
+                <p>韋伯認為，運輸成本是最基本的考量，但勞動力成本和聚集效應可能導致工廠選址偏離運輸成本最低點。</p>
+                <p>在勞動力密集型產業中，勞動力成本節省可能超過增加的運輸成本，導致工廠遷移至勞動力成本較低的地區。</p>
+            </div>
+
+            <div id="loading-indicator" class="loading-indicator">
+                正在計算最佳區位...
+            </div>
+
+            <div class="results">
+                <div id="optimal-location">
+                    <p>調整參數並點擊"計算最佳區位"按鈕來查看結果。</p>
+                </div>
+                <div id="cost-breakdown"></div>
+
+                <div id="labor-analysis" class="labor-control" style="display:none;">
+                    <h4>勞動力影響分析</h4>
+                    <div id="labor-impact-detail"></div>
+                </div>
+
+                <div id="agglom-analysis" class="agglom-control" style="display:none;">
+                    <h4>聚集效應影響分析</h4>
+                    <div id="agglom-impact-detail"></div>
+                </div>
+
+                <div id="factor-comparison" style="margin-top:15px;"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 檢測暗黑模式偏好
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // 獲取畫布和上下文
+        const canvas = document.getElementById('weberCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 設置初始數據 - 根據最新圖片更新點位
+        let points = {
+            materialA: { x: 100, y: 50, label: 'A', color: '#e74c3c', weight: 3 },
+            materialB: { x: 300, y: 50, label: 'B', color: '#2ecc71', weight: 2 },
+            market: { x: 200, y: 200, label: '市場', color: '#3498db', weight: 1 },
+            optimal: { x: 0, y: 0, label: 'O', color: '#9b59b6' }
+        };
+
+        // 格網尺寸（網格之間的距離）
+        const GRID_SIZE = 50;
+
+        let isDragging = false;
+        let selectedPoint = null;
+        let weightLoss = 30; // 原料重量損失百分比
+        let transportCost = 5; // 每公里每噸運輸成本
+        let laborSavings = 'none';
+        let laborIntensity = 50; // 勞動力密集程度 (%)
+        let laborCostWeight = 0.3; // 勞動力成本在總成本中的權重
+        let agglomeration = 'none';
+        let industrySpecialization = 50; // 產業專業化程度 (%)
+
+        // 初始化勞動力和聚集區
+        let laborZone = { x: 150, y: 200, radius: 0 };
+        let agglomerationZone = { x: 350, y: 220, radius: 0 };
+
+        // 調試模式
+        let debugMode = false;
+
+        // 獲取勞動力節省係數
+        function getLaborSavingFactor(laborSavingsType) {
+            switch(laborSavingsType) {
+                case 'light': return 0.90; // 10% 節省
+                case 'moderate': return 0.80; // 20% 節省
+                case 'significant': return 0.70; // 30% 節省
+                case 'dominant': return 0.60; // 40% 節省
+                default: return 1.0; // 無節省
+            }
+        }
+
+        // 獲取聚集效應係數
+        function getAgglomerationFactor(agglomerationType) {
+            switch(agglomerationType) {
+                case 'light': return 0.95; // 5% 節省
+                case 'moderate': return 0.85; // 15% 節省
+                case 'significant': return 0.75; // 25% 節省
+                default: return 1.0; // 無節省
+            }
+        }
+
+        // 獲取勞動力設置的文字說明
+        function getLaborSavingDescription(laborSavingsType) {
+            switch(laborSavingsType) {
+                case 'light': return '輕微勞動力優勢 (10% 成本節省)';
+                case 'moderate': return '中等勞動力優勢 (20% 成本節省)';
+                case 'significant': return '顯著勞動力優勢 (30% 成本節省)';
+                case 'dominant': return '主導性勞動力優勢 (40% 成本節省)';
+                default: return '無勞動力優勢';
+            }
+        }
+
+        // 獲取聚集效應的文字說明
+        function getAgglomerationDescription(agglomerationType) {
+            switch(agglomerationType) {
+                case 'light': return '輕微聚集效應 (5% 成本節省)';
+                case 'moderate': return '中等聚集效應 (15% 成本節省)';
+                case 'significant': return '顯著聚集效應 (25% 成本節省)';
+                default: return '無聚集效應';
+            }
+        }
+
+        // 繪製畫布函數
+        function drawCanvas() {
+            // 清空畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 暗黑模式適配
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            const gridColor = isDarkMode ? '#444444' : '#e0e0e0';
+            const textColor = isDarkMode ? '#e0e0e0' : '#000000';
+
+            // 繪製網格
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            // 繪製勞動力成本節省區域
+            if (laborSavings !== 'none') {
+                // 根據勞動力密集程度調整區域大小
+                let radius;
+                switch(laborSavings) {
+                    case 'light': radius = 50; break;
+                    case 'moderate': radius = 70; break;
+                    case 'significant': radius = 90; break;
+                    case 'dominant': radius = 110; break;
+                    default: radius = 0;
+                }
+
+                // 應用勞動力密集程度的影響
+                radius = radius * (0.75 + (laborIntensity / 100) * 0.5);
+
+                laborZone.radius = radius;
+
+                const laborFillStyle = isDarkMode ? 'var(--labor-bg)' : 'rgba(255, 240, 200, 0.3)';
+                const laborStrokeStyle = 'var(--labor-color)';
+
+                ctx.beginPath();
+                ctx.arc(laborZone.x, laborZone.y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = laborFillStyle;
+                ctx.fill();
+                ctx.strokeStyle = laborStrokeStyle;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = textColor;
+                ctx.font = '14px Arial';
+                ctx.fillText('勞動力優勢區', laborZone.x - 45, laborZone.y - radius - 10);
+            }
+
+            // 繪製聚集效應區域
+            if (agglomeration !== 'none') {
+                // 根據專業化程度調整區域大小
+                let radius;
+                switch(agglomeration) {
+                    case 'light': radius = 50; break;
+                    case 'moderate': radius = 70; break;
+                    case 'significant': radius = 90; break;
+                    default: radius = 0;
+                }
+
+                // 應用專業化程度的影響
+                radius = radius * (0.75 + (industrySpecialization / 100) * 0.5);
+
+                agglomerationZone.radius = radius;
+
+                const agglomFillStyle = isDarkMode ? 'var(--agglom-bg)' : 'rgba(200, 240, 255, 0.3)';
+                const agglomStrokeStyle = 'var(--agglom-color)';
+
+                ctx.beginPath();
+                ctx.arc(agglomerationZone.x, agglomerationZone.y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = agglomFillStyle;
+                ctx.fill();
+                ctx.strokeStyle = agglomStrokeStyle;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = textColor;
+                ctx.font = '14px Arial';
+                ctx.fillText('產業聚集區', agglomerationZone.x - 40, agglomerationZone.y - radius - 10);
+            }
+
+            // 繪製韋伯三角形
+            ctx.beginPath();
+            ctx.moveTo(points.materialA.x, points.materialA.y);
+            ctx.lineTo(points.materialB.x, points.materialB.y);
+            ctx.lineTo(points.market.x, points.market.y);
+            ctx.closePath();
+            ctx.strokeStyle = isDarkMode ? '#777' : '#aaa';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 繪製各點
+            for (const key in points) {
+                if (key === 'optimal' && (!points.optimal.x && !points.optimal.y)) continue;
+
+                const point = points[key];
+
+                // 繪製實心圓
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = point.color;
+                ctx.fill();
+
+                // 標籤
+                ctx.font = '16px Arial';
+                ctx.fillStyle = textColor;
+                ctx.fillText(point.label, point.x + 15, point.y - 5);
+
+                // 顯示重量信息（僅對原料點）
+                if (key.includes('material')) {
+                    ctx.font = '12px Arial';
+                    ctx.fillText(`${point.weight}噸`, point.x + 15, point.y + 15);
+                }
+            }
+
+            // 如果最佳點已計算，繪製連接線
+            if (points.optimal.x && points.optimal.y) {
+                // 到原料A的線
+                ctx.beginPath();
+                ctx.setLineDash([5, 3]);
+                ctx.moveTo(points.materialA.x, points.materialA.y);
+                ctx.lineTo(points.optimal.x, points.optimal.y);
+                ctx.strokeStyle = points.materialA.color;
+                ctx.lineWidth = 2 * points.materialA.weight / (points.materialA.weight + points.materialB.weight);
+                ctx.stroke();
+
+                // 到原料B的線
+                ctx.beginPath();
+                ctx.moveTo(points.materialB.x, points.materialB.y);
+                ctx.lineTo(points.optimal.x, points.optimal.y);
+                ctx.strokeStyle = points.materialB.color;
+                ctx.lineWidth = 2 * points.materialB.weight / (points.materialA.weight + points.materialB.weight);
+                ctx.stroke();
+
+                // 到市場的線
+                ctx.beginPath();
+                ctx.moveTo(points.market.x, points.market.y);
+                ctx.lineTo(points.optimal.x, points.optimal.y);
+                ctx.strokeStyle = points.market.color;
+
+                // 計算產品重量（原料重量減去損失）
+                const productWeight = (points.materialA.weight + points.materialB.weight) * (1 - weightLoss/100);
+                ctx.lineWidth = 2 * productWeight / (points.materialA.weight + points.materialB.weight);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        // 計算兩點之間的距離
+        function distance(p1, p2) {
+            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        }
+
+        // 計算點是否在圓內
+        function isPointInCircle(point, circle) {
+            return distance(point, circle) <= circle.radius;
+        }
+
+        // 計算最佳工業區位
+        function calculateOptimalLocation() {
+            // 顯示加載指示器
+            document.getElementById('loading-indicator').style.display = 'block';
+
+            // 使用setTimeout讓UI有時間更新
+            setTimeout(() => {
+                // 獲取最新的值
+                transportCost = parseFloat(document.getElementById('transport-cost').value);
+                laborCostWeight = parseFloat(document.getElementById('labor-cost-weight').value);
+
+                // 基本權重計算
+                const weightA = points.materialA.weight;
+                const weightB = points.materialB.weight;
+                const productWeight = (weightA + weightB) * (1 - weightLoss/100);
+
+                // 計算運輸成本最小化的位置（加權平均）
+                let optimalX = (weightA * points.materialA.x + weightB * points.materialB.x + productWeight * points.market.x) / (weightA + weightB + productWeight);
+                let optimalY = (weightA * points.materialA.y + weightB * points.materialB.y + productWeight * points.market.y) / (weightA + weightB + productWeight);
+
+                // 最佳點對象
+                let optimalPoint = { x: optimalX, y: optimalY };
+
+                // 計算基礎運輸成本（未考慮修正因素前）
+                const baseDistanceA = distance(optimalPoint, points.materialA);
+                const baseDistanceB = distance(optimalPoint, points.materialB);
+                const baseDistanceM = distance(optimalPoint, points.market);
+
+                const baseCost = transportCost * (weightA * baseDistanceA + weightB * baseDistanceB + productWeight * baseDistanceM);
+
+                // 調試信息
+                let debugInfo = `
+                    <strong>運輸成本計算:</strong><br>
+                    原料A重量: ${weightA} 噸<br>
+                    原料B重量: ${weightB} 噸<br>
+                    製成品重量: ${productWeight.toFixed(2)} 噸<br>
+                    每公里每噸運輸成本: ${transportCost}<br>
+                    從A的距離: ${baseDistanceA.toFixed(2)} 單位<br>
+                    從B的距離: ${baseDistanceB.toFixed(2)} 單位<br>
+                    到市場的距離: ${baseDistanceM.toFixed(2)} 單位<br>
+                    基礎運輸成本: ${baseCost.toFixed(2)} 元
+                `;
+
+                // 檢查勞動力成本區域的影響
+                let laborFactor = 1.0; // 預設無影響
+                let laborInfluence = 0;
+                let laborLocation = false;
+                let laborImpactDetail = '';
+
+                if (laborSavings !== 'none') {
+                    // 獲取勞動力節省係數
+                    const baseLaborSavingFactor = getLaborSavingFactor(laborSavings);
+
+                    // 根據勞動力密集程度調整係數
+                    const intensityModifier = 0.8 + (laborIntensity / 100) * 0.4; // 0.8 至 1.2 的範圍
+                    const adjustedLaborSavingFactor = Math.max(0.6, Math.min(0.95, baseLaborSavingFactor * intensityModifier));
+
+                    if (isPointInCircle(optimalPoint, laborZone)) {
+                        // 已在勞動力優勢區內
+                        laborFactor = adjustedLaborSavingFactor;
+                        laborLocation = true;
+
+                        laborImpactDetail = `工廠位於勞動力優勢區內，基於該地區${getLaborSavingDescription(laborSavings)}，`;
+                        laborImpactDetail += `並考慮勞動力密集程度(${laborIntensity}%)的影響，`;
+                        laborImpactDetail += `總成本降低了${((1-laborFactor)*100).toFixed(1)}%。`;
+
+                        debugInfo += `<br><strong>勞動力因素:</strong> 位於勞動力優勢區內，成本係數 ${laborFactor.toFixed(3)} (基礎係數 ${baseLaborSavingFactor} × 密集度修正 ${intensityModifier.toFixed(2)})`;
+                    } else {
+                        // 考慮遷移到勞動力區的可能性
+                        const laborSavingPoint = { x: laborZone.x, y: laborZone.y };
+
+                        // 計算在勞動力區的運輸成本
+                        const laborDistanceA = distance(laborSavingPoint, points.materialA);
+                        const laborDistanceB = distance(laborSavingPoint, points.materialB);
+                        const laborDistanceM = distance(laborSavingPoint, points.market);
+
+                        const laborTransportCost = transportCost * (weightA * laborDistanceA + weightB * laborDistanceB + productWeight * laborDistanceM);
+
+                        debugInfo += `<br><strong>勞動力區域檢查:</strong><br>
+                            勞動區運輸成本: ${laborTransportCost.toFixed(2)} 元<br>
+                            勞動成本權重: ${laborCostWeight}<br>
+                            勞動區成本節省係數: ${adjustedLaborSavingFactor.toFixed(3)}`;
+
+                        // 計算總成本 = 運輸成本 × (1 - 勞動力權重) + 勞動力成本 × 勞動力權重
+                        const currentTotalCost = baseCost;
+                        const laborZoneTotalCost = (laborTransportCost * (1 - laborCostWeight)) +
+                                                 (laborTransportCost * laborCostWeight * adjustedLaborSavingFactor);
+
+                        debugInfo += `<br>勞動區混合成本: ${laborZoneTotalCost.toFixed(2)} 元 = 運輸(${(laborTransportCost * (1 - laborCostWeight)).toFixed(2)}) + 勞動(${(laborTransportCost * laborCostWeight * adjustedLaborSavingFactor).toFixed(2)})`;
+
+                        // 如果在勞動力區的總成本更低，則遷移
+                        if (laborZoneTotalCost < currentTotalCost) {
+                            optimalPoint = laborSavingPoint;
+                            laborFactor = adjustedLaborSavingFactor;
+                            laborInfluence = (currentTotalCost - laborZoneTotalCost) / currentTotalCost * 100;
+                            laborLocation = true;
+
+                            laborImpactDetail = `根據韋伯的勞動力區位偏離理論，工廠會遷移至勞動力優勢區。`;
+                            laborImpactDetail += `雖然增加運輸成本${((laborTransportCost - baseCost) / baseCost * 100).toFixed(1)}%，`;
+                            laborImpactDetail += `但勞動力成本節省${((1-adjustedLaborSavingFactor)*100).toFixed(1)}%，`;
+                            laborImpactDetail += `此行業勞動力權重為${(laborCostWeight * 100).toFixed(0)}%，`;
+                            laborImpactDetail += `整體節省${laborInfluence.toFixed(1)}%。`;
+
+                            debugInfo += `<br>→ 遷移至勞動力區域，節省 ${laborInfluence.toFixed(2)}%`;
+                        } else {
+                            laborImpactDetail = `根據韋伯的勞動力區位偏離理論，工廠不會遷移至勞動力優勢區。`;
+                            laborImpactDetail += `因為增加的運輸成本(${((laborTransportCost - baseCost) / baseCost * 100).toFixed(1)}%)`;
+                            laborImpactDetail += `超過了勞動力成本節省(勞動力權重${(laborCostWeight * 100).toFixed(0)}% × 節省比例${((1-adjustedLaborSavingFactor)*100).toFixed(1)}%)。`;
+
+                            debugInfo += `<br>→ 不遷移至勞動力區域，額外運輸成本(${(laborTransportCost - baseCost).toFixed(2)})超過勞動力節省`;
+                        }
+                    }
+
+                    // 更新勞動力分析區域
+                    document.getElementById('labor-analysis').style.display = 'block';
+                    document.getElementById('labor-impact-detail').innerHTML = laborImpactDetail;
+                } else {
+                    // 隱藏勞動力分析區域
+                    document.getElementById('labor-analysis').style.display = 'none';
+                }
+
+                // 檢查聚集效應的影響
+                let agglomerationFactor = 1.0; // 預設無影響
+                let agglomerationInfluence = 0;
+                let agglomerationLocation = false;
+                let agglomImpactDetail = '';
+
+                if (agglomeration !== 'none') {
+                    // 獲取基本聚集效應係數
+                    const baseAgglomSavingFactor = getAgglomerationFactor(agglomeration);
+
+                    // 根據專業化程度調整係數
+                    const specModifier = 0.9 + (industrySpecialization / 100) * 0.2; // 0.9 至 1.1 的範圍
+                    const adjustedAgglomSavingFactor = Math.max(0.7, Math.min(0.98, baseAgglomSavingFactor * specModifier));
+
+                    if (isPointInCircle(optimalPoint, agglomerationZone)) {
+                        // 已在聚集區內
+                        agglomerationFactor = adjustedAgglomSavingFactor;
+                        agglomerationLocation = true;
+
+                        agglomImpactDetail = `工廠位於產業聚集區內，基於${getAgglomerationDescription(agglomeration)}，`;
+                        agglomImpactDetail += `並考慮產業專業化程度(${industrySpecialization}%)的影響，`;
+                        agglomImpactDetail += `總成本降低了${((1-agglomerationFactor)*100).toFixed(1)}%。`;
+
+                        debugInfo += `<br><br><strong>聚集效應:</strong> 位於聚集區內，成本係數 ${agglomerationFactor.toFixed(3)} (基礎係數 ${baseAgglomSavingFactor} × 專業化修正 ${specModifier.toFixed(2)})`;
+                    } else {
+                        // 考慮遷移到聚集區的可能性
+                        const agglomerationPoint = { x: agglomerationZone.x, y: agglomerationZone.y };
+
+                        // 計算在聚集區的運輸成本
+                        const agglomDistanceA = distance(agglomerationPoint, points.materialA);
+                        const agglomDistanceB = distance(agglomerationPoint, points.materialB);
+                        const agglomDistanceM = distance(agglomerationPoint, points.market);
+
+                        const agglomTransportCost = transportCost * (weightA * agglomDistanceA + weightB * agglomDistanceB + productWeight * agglomDistanceM);
+
+                        // 計算目前最佳點（可能已經被勞動力因素調整過）的成本
+                        const currentDistanceA = distance(optimalPoint, points.materialA);
+                        const currentDistanceB = distance(optimalPoint, points.materialB);
+                        const currentDistanceM = distance(optimalPoint, points.market);
+
+                        let currentTotalCost = transportCost * (weightA * currentDistanceA + weightB * currentDistanceB + productWeight * currentDistanceM);
+                        if (laborLocation) {
+                            // 如果在勞動力區，應用勞動力係數到總成本
+                            const laborComponent = currentTotalCost * laborCostWeight * laborFactor;
+                            const transportComponent = currentTotalCost * (1 - laborCostWeight);
+                            currentTotalCost = transportComponent + laborComponent;
+                        }
+
+                        // 計算在聚集區的總成本（包含勞動力影響）
+                        let agglomTotalCost = agglomTransportCost;
+                        if (isPointInCircle(agglomerationPoint, laborZone) && laborSavings !== 'none') {
+                            // 如果聚集區也在勞動力區內，也應用勞動力係數
+                            const laborComponent = agglomTotalCost * laborCostWeight * laborFactor;
+                            const transportComponent = agglomTotalCost * (1 - laborCostWeight);
+                            agglomTotalCost = transportComponent + laborComponent;
+                        }
+
+                        // 應用聚集效應係數
+                        agglomTotalCost *= adjustedAgglomSavingFactor;
+
+                        debugInfo += `<br><strong>聚集區域檢查:</strong><br>
+                            當前位置總成本: ${currentTotalCost.toFixed(2)} 元<br>
+                            聚集區運輸成本: ${agglomTransportCost.toFixed(2)} 元<br>
+                            聚集效應節省係數: ${adjustedAgglomSavingFactor.toFixed(3)}<br>
+                            聚集區總成本: ${agglomTotalCost.toFixed(2)} 元`;
+
+                        // 如果在聚集區的總成本更低，則遷移
+                        if (agglomTotalCost < currentTotalCost) {
+                            optimalPoint = agglomerationPoint;
+                            agglomerationFactor = adjustedAgglomSavingFactor;
+                            agglomerationInfluence = (currentTotalCost - agglomTotalCost) / currentTotalCost * 100;
+                            agglomerationLocation = true;
+
+                            // 如果從勞動力區域遷移到聚集區，且聚集區不在勞動力區內，則不再應用勞動力係數
+                            if (laborLocation && !isPointInCircle(agglomerationPoint, laborZone)) {
+                                laborFactor = 1.0;
+                                laborLocation = false;
+                                document.getElementById('labor-analysis').style.display = 'none';
+                            }
+
+                            agglomImpactDetail = `根據韋伯的聚集經濟理論，工廠會遷移至產業聚集區。`;
+                            agglomImpactDetail += `雖然增加運輸成本${((agglomTransportCost - baseCost) / baseCost * 100).toFixed(1)}%，`;
+                            agglomImpactDetail += `但聚集效應節省${((1-adjustedAgglomSavingFactor)*100).toFixed(1)}%，`;
+                            agglomImpactDetail += `整體節省${agglomerationInfluence.toFixed(1)}%。`;
+
+                            debugInfo += `<br>→ 遷移至聚集區域，節省 ${agglomerationInfluence.toFixed(2)}%`;
+                        } else {
+                            agglomImpactDetail = `根據韋伯的聚集經濟理論，工廠不會遷移至產業聚集區。`;
+                            agglomImpactDetail += `因為增加的運輸成本(${((agglomTransportCost - baseCost) / baseCost * 100).toFixed(1)}%)`;
+                            agglomImpactDetail += `超過了聚集效應節省(${((1-adjustedAgglomSavingFactor)*100).toFixed(1)}%)。`;
+
+                            debugInfo += `<br>→ 不遷移至聚集區域，額外運輸成本超過聚集效應節省`;
+                        }
+                    }
+
+                    // 更新聚集效應分析區域
+                    document.getElementById('agglom-analysis').style.display = 'block';
+                    document.getElementById('agglom-impact-detail').innerHTML = agglomImpactDetail;
+                } else {
+                    // 隱藏聚集效應分析區域
+                    document.getElementById('agglom-analysis').style.display = 'none';
+                }
+
+                // 更新調試信息
+                if (debugMode) {
+                    document.getElementById('debug-info').innerHTML = debugInfo;
+                }
+
+                // 設置最佳點
+                points.optimal.x = optimalPoint.x;
+                points.optimal.y = optimalPoint.y;
+
+                // 計算最終成本
+                const finalDistanceA = distance(optimalPoint, points.materialA);
+                const finalDistanceB = distance(optimalPoint, points.materialB);
+                const finalDistanceM = distance(optimalPoint, points.market);
+
+                let totalTransportCost = transportCost * (weightA * finalDistanceA + weightB * finalDistanceB + productWeight * finalDistanceM);
+
+                // 計算勞動力和其他成本
+                let laborCost = laborLocation ? (totalTransportCost * laborCostWeight * laborFactor) : (totalTransportCost * laborCostWeight);
+                let transportOnlyCost = totalTransportCost * (1 - laborCostWeight);
+
+                // 應用聚集效應係數到總成本
+                let totalCost = (transportOnlyCost + laborCost);
+                if (agglomerationFactor < 1.0) {
+                    totalCost *= agglomerationFactor;
+                }
+
+                // 展示分析結果
+                const resultElement = document.getElementById('optimal-location');
+                resultElement.innerHTML = `
+                    <p><strong>最佳工業區位：</strong> 坐標(${Math.round(optimalPoint.x)}, ${Math.round(optimalPoint.y)})</p>
+                    <p><strong>基本運輸成本：</strong> ${totalTransportCost.toFixed(2)} 元</p>
+                    ${laborFactor < 1.0 ? `<p><strong>勞動力成本節省：</strong> ${((1-laborFactor)*100).toFixed(1)}% (僅應用於成本的${(laborCostWeight*100).toFixed(0)}%)</p>` : ''}
+                    ${agglomerationFactor < 1.0 ? `<p><strong>聚集效應節省：</strong> ${((1-agglomerationFactor)*100).toFixed(1)}%</p>` : ''}
+                    <p><strong>總成本：</strong> ${totalCost.toFixed(2)} 元</p>
+                `;
+
+                const costBreakdown = document.getElementById('cost-breakdown');
+                costBreakdown.innerHTML = `
+                    <h4>成本明細：</h4>
+                    <p>從原料A運輸成本：${(transportCost * weightA * finalDistanceA).toFixed(2)} 元</p>
+                    <p>從原料B運輸成本：${(transportCost * weightB * finalDistanceB).toFixed(2)} 元</p>
+                    <p>到市場運輸成本：${(transportCost * productWeight * finalDistanceM).toFixed(2)} 元</p>
+                    <p>原料重量：A=${weightA}噸, B=${weightB}噸</p>
+                    <p>製成品重量：${productWeight.toFixed(2)}噸 (損失率${weightLoss}%)</p>
+                    <p>運輸成本率：每公里每噸${transportCost.toFixed(1)}元</p>
+                `;
+
+                // 分析影響力
+                const factorComparison = document.getElementById('factor-comparison');
+
+                if (laborFactor < 1.0 || agglomerationFactor < 1.0) {
+                    let comparisonHTML = `<h4>韋伯理論因素影響力分析：</h4>`;
+
+                    // 計算各因素的實際影響
+                    const transportEffect = totalTransportCost / totalCost;
+                    const laborEffect = laborLocation ? (1 - laborFactor) * laborCostWeight : 0;
+                    const agglomEffect = agglomerationLocation ? (1 - agglomerationFactor) : 0;
+
+                    if (laborFactor < 1.0 && agglomerationFactor < 1.0) {
+                        // 兩個因素都有影響
+                        if (laborEffect > agglomEffect) {
+                            comparisonHTML += `<p><strong>勞動力成本</strong>是此行業的主要區位因素，影響力約為${(laborEffect*100).toFixed(1)}%，`;
+                            comparisonHTML += `而聚集效應影響力為${(agglomEffect*100).toFixed(1)}%。</p>`;
+                            comparisonHTML += `<p>此結果表明，對於此勞動力密集程度(${laborIntensity}%)的產業，`;
+                            comparisonHTML += `韋伯的勞動力區位偏離理論比集聚效應更能解釋工廠區位決策。</p>`;
+                        } else {
+                            comparisonHTML += `<p><strong>集聚經濟效應</strong>是此行業的主要區位因素，影響力約為${(agglomEffect*100).toFixed(1)}%，`;
+                            comparisonHTML += `而勞動力成本影響力為${(laborEffect*100).toFixed(1)}%。</p>`;
+                            comparisonHTML += `<p>此結果表明，對於此專業化程度(${industrySpecialization}%)的產業，`;
+                            comparisonHTML += `韋伯的集聚經濟理論比勞動力區位偏離更能解釋工廠區位決策。</p>`;
+                        }
+                    } else if (laborFactor < 1.0) {
+                        comparisonHTML += `<p>在此情境下，<strong>勞動力成本</strong>是運輸成本外的主導選址因素，`;
+                        comparisonHTML += `顯示勞動力密集型產業(密集度${laborIntensity}%)會偏向低勞動成本地區。</p>`;
+                        comparisonHTML += `<p>這與韋伯的勞動力區位偏離理論相符，當勞動力節省超過額外運輸成本時，工廠會遷移至勞動力優勢區。</p>`;
+                    } else if (agglomerationFactor < 1.0) {
+                        comparisonHTML += `<p>在此情境下，<strong>集聚經濟效應</strong>是運輸成本外的主導選址因素，`;
+                        comparisonHTML += `顯示高度專業化產業(專業度${industrySpecialization}%)受益於產業群聚。</p>`;
+                        comparisonHTML += `<p>這與韋伯的集聚理論相符，企業透過共享資源、知識溢出和專業化分工獲得成本優勢。</p>`;
+                    }
+
+                    factorComparison.innerHTML = comparisonHTML;
+                } else {
+                    factorComparison.innerHTML = `
+                        <p>在此情境下，<strong>運輸成本</strong>是唯一影響選址的因素。</p>
+                        <p>這符合韋伯理論的基本假設，在無勞動力和集聚效應時，工廠區位取決於原料和市場的相對位置及權重。</p>
+                    `;
+                }
+
+                // 隱藏加載指示器
+                document.getElementById('loading-indicator').style.display = 'none';
+
+                // 重新繪製畫布
+                drawCanvas();
+            }, 100); // 短暫延遲以更新UI
+        }
+
+        // 實現可調整大小的區域
+        function initResizers() {
+            // 水平分隔線調整（地圖與控制面板之間）
+            const mapControlResizer = document.getElementById('map-control-resizer');
+            const mapSection = document.getElementById('map-section');
+            const controlSection = document.getElementById('control-section');
+
+            let isHorizontalResizing = false;
+            let startY, startMapHeight;
+
+            mapControlResizer.addEventListener('mousedown', function(e) {
+                isHorizontalResizing = true;
+                startY = e.clientY;
+                startMapHeight = mapSection.offsetHeight;
+
+                // 防止選中文字
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'ns-resize';
+            });
+
+            // 垂直分隔線調整（左右兩列之間）
+            const columnResizer = document.getElementById('column-resizer');
+            const leftColumn = document.getElementById('left-column');
+            const resultsSection = document.getElementById('results-section');
+            const mainContainer = document.getElementById('main-container');
+
+            let isVerticalResizing = false;
+            let startX, startLeftWidth;
+
+            columnResizer.addEventListener('mousedown', function(e) {
+                isVerticalResizing = true;
+                startX = e.clientX;
+                startLeftWidth = leftColumn.offsetWidth;
+
+                // 防止選中文字
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'ew-resize';
+            });
+
+            // 處理拖動事件
+            document.addEventListener('mousemove', function(e) {
+                if (isHorizontalResizing) {
+                    const deltaY = e.clientY - startY;
+                    const newMapHeight = Math.max(150, Math.min(startMapHeight + deltaY, window.innerHeight - 200));
+
+                    mapSection.style.height = newMapHeight + 'px';
+
+                    // 調整畫布大小
+                    const canvasContainer = document.getElementById('canvas-container');
+                    canvasContainer.style.height = (newMapHeight - 30) + 'px';
+                    canvas.height = newMapHeight - 30;
+
+                    // 重新繪製
+                    drawCanvas();
+                }
+
+                if (isVerticalResizing) {
+                    const deltaX = e.clientX - startX;
+                    const containerWidth = mainContainer.offsetWidth;
+                    const newLeftWidth = Math.max(300, Math.min(startLeftWidth + deltaX, containerWidth - 300));
+                    const leftPercentage = (newLeftWidth / containerWidth) * 100;
+
+                    // 使用網格布局設置比例
+                    mainContainer.style.gridTemplateColumns = `${leftPercentage}% auto`;
+
+                    // 重新繪製
+                    drawCanvas();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isHorizontalResizing || isVerticalResizing) {
+                    isHorizontalResizing = false;
+                    isVerticalResizing = false;
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+
+                    // 觸發窗口調整事件來重新適應大小
+                    window.dispatchEvent(new Event('resize'));
+                }
+            });
+
+            // 處理觸控事件（移動設備）
+            mapControlResizer.addEventListener('touchstart', function(e) {
+                isHorizontalResizing = true;
+                startY = e.touches[0].clientY;
+                startMapHeight = mapSection.offsetHeight;
+                e.preventDefault();
+            });
+
+            columnResizer.addEventListener('touchstart', function(e) {
+                isVerticalResizing = true;
+                startX = e.touches[0].clientX;
+                startLeftWidth = leftColumn.offsetWidth;
+                e.preventDefault();
+            });
+
+            document.addEventListener('touchmove', function(e) {
+                if (isHorizontalResizing) {
+                    const deltaY = e.touches[0].clientY - startY;
+                    const newMapHeight = Math.max(150, Math.min(startMapHeight + deltaY, window.innerHeight - 200));
+
+                    mapSection.style.height = newMapHeight + 'px';
+
+                    // 調整畫布大小
+                    const canvasContainer = document.getElementById('canvas-container');
+                    canvasContainer.style.height = (newMapHeight - 30) + 'px';
+                    canvas.height = newMapHeight - 30;
+
+                    // 重新繪製
+                    drawCanvas();
+                    e.preventDefault();
+                }
+
+                if (isVerticalResizing) {
+                    const deltaX = e.touches[0].clientX - startX;
+                    const containerWidth = mainContainer.offsetWidth;
+                    const newLeftWidth = Math.max(300, Math.min(startLeftWidth + deltaX, containerWidth - 300));
+                    const leftPercentage = (newLeftWidth / containerWidth) * 100;
+
+                    // 使用網格布局設置比例
+                    mainContainer.style.gridTemplateColumns = `${leftPercentage}% auto`;
+
+                    // 重新繪製
+                    drawCanvas();
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('touchend', function() {
+                if (isHorizontalResizing || isVerticalResizing) {
+                    isHorizontalResizing = false;
+                    isVerticalResizing = false;
+
+                    // 觸發窗口調整事件來重新適應大小
+                    window.dispatchEvent(new Event('resize'));
+                }
+            });
+        }
+
+        // 頁面加載時初始化
+        window.onload = function() {
+            // 調整畫布大小以適應容器
+            const container = document.getElementById('canvas-container');
+            canvas.width = container.offsetWidth;
+
+            // 初始化可調整大小的區域
+            initResizers();
+
+            // 初始繪製
+            drawCanvas();
+
+            // 添加事件監聽器
+            canvas.addEventListener('mousedown', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // 檢查是否點擊了勞動力優勢區中心
+                if (laborSavings !== 'none') {
+                    const distanceToLabor = Math.sqrt(Math.pow(x - laborZone.x, 2) + Math.pow(y - laborZone.y, 2));
+                    if (distanceToLabor < 15) {
+                        isDragging = true;
+                        selectedPoint = 'laborZone';
+                        return;
+                    }
+                }
+
+                // 檢查是否點擊了產業集聚區中心
+                if (agglomeration !== 'none') {
+                    const distanceToAgglom = Math.sqrt(Math.pow(x - agglomerationZone.x, 2) + Math.pow(y - agglomerationZone.y, 2));
+                    if (distanceToAgglom < 15) {
+                        isDragging = true;
+                        selectedPoint = 'agglomerationZone';
+                        return;
+                    }
+                }
+
+                // 檢查是否點擊了某個點
+                for (const key in points) {
+                    const point = points[key];
+                    if (key === 'optimal') continue; // 不允許拖動最佳點
+
+                    const distance = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2));
+                    if (distance < 15) {
+                        isDragging = true;
+                        selectedPoint = key;
+                        break;
+                    }
+                }
+            });
+
+            // 計算最近的網格交叉點
+            function snapToGrid(x, y) {
+                // 磁力吸附閾值（點與格線交叉點的最大距離，會觸發吸附）
+                const SNAP_THRESHOLD = 15;
+
+                // 計算最近的網格線
+                const gridX = Math.round(x / GRID_SIZE) * GRID_SIZE;
+                const gridY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+
+                // 計算與最近網格交點的距離
+                const distToGrid = Math.sqrt(Math.pow(x - gridX, 2) + Math.pow(y - gridY, 2));
+
+                // 如果距離小於閾值，吸附到網格點
+                if (distToGrid < SNAP_THRESHOLD) {
+                    return { x: gridX, y: gridY };
+                }
+
+                // 否則保持原始位置
+                return { x: x, y: y };
+            }
+
+            canvas.addEventListener('mousemove', function(e) {
+                if (isDragging && selectedPoint) {
+                    const rect = canvas.getBoundingClientRect();
+                    const newX = e.clientX - rect.left;
+                    const newY = e.clientY - rect.top;
+
+                    // 確保點不會離開畫布
+                    const clampedX = Math.max(20, Math.min(canvas.width - 20, newX));
+                    const clampedY = Math.max(20, Math.min(canvas.height - 20, newY));
+
+                    // 吸附到最近的網格交叉點
+                    const snappedPoint = snapToGrid(clampedX, clampedY);
+
+                    if (selectedPoint === 'laborZone') {
+                        laborZone.x = snappedPoint.x;
+                        laborZone.y = snappedPoint.y;
+                    } else if (selectedPoint === 'agglomerationZone') {
+                        agglomerationZone.x = snappedPoint.x;
+                        agglomerationZone.y = snappedPoint.y;
+                    } else {
+                        points[selectedPoint].x = snappedPoint.x;
+                        points[selectedPoint].y = snappedPoint.y;
+                    }
+
+                    drawCanvas();
+                }
+            });
+
+            canvas.addEventListener('mouseup', function() {
+                isDragging = false;
+                selectedPoint = null;
+            });
+
+            // 適配觸控設備
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+
+                // 檢查是否點擊了勞動力優勢區中心
+                if (laborSavings !== 'none') {
+                    const distanceToLabor = Math.sqrt(Math.pow(x - laborZone.x, 2) + Math.pow(y - laborZone.y, 2));
+                    if (distanceToLabor < 20) { // 觸摸區域稍大
+                        isDragging = true;
+                        selectedPoint = 'laborZone';
+                        return;
+                    }
+                }
+
+                // 檢查是否點擊了產業集聚區中心
+                if (agglomeration !== 'none') {
+                    const distanceToAgglom = Math.sqrt(Math.pow(x - agglomerationZone.x, 2) + Math.pow(y - agglomerationZone.y, 2));
+                    if (distanceToAgglom < 20) { // 觸摸區域稍大
+                        isDragging = true;
+                        selectedPoint = 'agglomerationZone';
+                        return;
+                    }
+                }
+
+                // 檢查是否點擊了某個點
+                for (const key in points) {
+                    const point = points[key];
+                    if (key === 'optimal') continue; // 不允許拖動最佳點
+
+                    const distance = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2));
+                    if (distance < 20) { // 觸摸區域稍大
+                        isDragging = true;
+                        selectedPoint = key;
+                        break;
+                    }
+                }
+            });
+
+            canvas.addEventListener('touchmove', function(e) {
+                if (isDragging && selectedPoint) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    const newX = touch.clientX - rect.left;
+                    const newY = touch.clientY - rect.top;
+
+                    // 確保點不會離開畫布
+                    const clampedX = Math.max(20, Math.min(canvas.width - 20, newX));
+                    const clampedY = Math.max(20, Math.min(canvas.height - 20, newY));
+
+                    // 吸附到最近的網格交叉點
+                    const snappedPoint = snapToGrid(clampedX, clampedY);
+
+                    if (selectedPoint === 'laborZone') {
+                        laborZone.x = snappedPoint.x;
+                        laborZone.y = snappedPoint.y;
+                    } else if (selectedPoint === 'agglomerationZone') {
+                        agglomerationZone.x = snappedPoint.x;
+                        agglomerationZone.y = snappedPoint.y;
+                    } else {
+                        points[selectedPoint].x = snappedPoint.x;
+                        points[selectedPoint].y = snappedPoint.y;
+                    }
+
+                    drawCanvas();
+                }
+            });
+
+            canvas.addEventListener('touchend', function() {
+                isDragging = false;
+                selectedPoint = null;
+            });
+
+            // 綁定控制元素
+            document.getElementById('material-a-weight').addEventListener('input', function(e) {
+                points.materialA.weight = parseFloat(e.target.value);
+                document.getElementById('material-a-weight-value').textContent = points.materialA.weight.toFixed(1);
+                drawCanvas();
+            });
+
+            document.getElementById('material-b-weight').addEventListener('input', function(e) {
+                points.materialB.weight = parseFloat(e.target.value);
+                document.getElementById('material-b-weight-value').textContent = points.materialB.weight.toFixed(1);
+                drawCanvas();
+            });
+
+            document.getElementById('weight-loss').addEventListener('input', function(e) {
+                weightLoss = parseInt(e.target.value);
+                document.getElementById('weight-loss-value').textContent = weightLoss + '%';
+            });
+
+            document.getElementById('transport-cost').addEventListener('input', function(e) {
+                transportCost = parseFloat(e.target.value);
+                document.getElementById('transport-cost-value').textContent = transportCost.toFixed(1);
+            });
+
+            document.getElementById('labor-cost-weight').addEventListener('input', function(e) {
+                laborCostWeight = parseFloat(e.target.value);
+                document.getElementById('labor-cost-weight-value').textContent = laborCostWeight.toFixed(1);
+            });
+
+            document.getElementById('labor-savings').addEventListener('change', function(e) {
+                laborSavings = e.target.value;
+
+                // 顯示/隱藏勞動力密集程度控制
+                const intensityContainer = document.getElementById('labor-intensity-container');
+                if (laborSavings === 'none') {
+                    intensityContainer.style.display = 'none';
+                } else {
+                    intensityContainer.style.display = 'block';
+                }
+
+                drawCanvas();
+            });
+
+            document.getElementById('labor-intensity').addEventListener('input', function(e) {
+                laborIntensity = parseInt(e.target.value);
+                document.getElementById('labor-intensity-value').textContent = laborIntensity + '%';
+                drawCanvas();
+            });
+
+            document.getElementById('agglomeration').addEventListener('change', function(e) {
+                agglomeration = e.target.value;
+
+                // 顯示/隱藏專業化程度控制
+                const specializationContainer = document.getElementById('specialization-container');
+                if (agglomeration === 'none') {
+                    specializationContainer.style.display = 'none';
+                } else {
+                    specializationContainer.style.display = 'block';
+                }
+
+                drawCanvas();
+            });
+
+            document.getElementById('industry-specialization').addEventListener('input', function(e) {
+                industrySpecialization = parseInt(e.target.value);
+                document.getElementById('industry-specialization-value').textContent = industrySpecialization + '%';
+                drawCanvas();
+            });
+
+            document.getElementById('calculate-btn').addEventListener('click', calculateOptimalLocation);
+
+            document.getElementById('reset-btn').addEventListener('click', function() {
+                // 重置所有數值到初始狀態 - 根據最新圖片設置
+                points = {
+                    materialA: { x: 200, y: 350, label: 'A', color: '#e74c3c', weight: 3 },
+                    materialB: { x: 450, y: 350, label: 'B', color: '#2ecc71', weight: 2 },
+                    market: { x: 300, y: 500, label: 'M', color: '#3498db', weight: 1 },
+                    optimal: { x: 0, y: 0, label: 'O', color: '#9b59b6' }
+                };
+
+                weightLoss = 30;
+                transportCost = 5;
+                laborCostWeight = 0.3;
+                laborSavings = 'none';
+                laborIntensity = 50;
+                agglomeration = 'none';
+                industrySpecialization = 50;
+
+                // 重置UI控制項
+                document.getElementById('material-a-weight').value = 3;
+                document.getElementById('material-a-weight-value').textContent = '3.0';
+
+                document.getElementById('material-b-weight').value = 2;
+                document.getElementById('material-b-weight-value').textContent = '2.0';
+
+                document.getElementById('weight-loss').value = 30;
+                document.getElementById('weight-loss-value').textContent = '30%';
+
+                document.getElementById('transport-cost').value = 5;
+                document.getElementById('transport-cost-value').textContent = '5.0';
+
+                document.getElementById('labor-cost-weight').value = 0.3;
+                document.getElementById('labor-cost-weight-value').textContent = '0.3';
+
+                document.getElementById('labor-savings').value = 'none';
+                document.getElementById('labor-intensity-container').style.display = 'none';
+                document.getElementById('labor-intensity').value = 50;
+                document.getElementById('labor-intensity-value').textContent = '50%';
+
+                document.getElementById('agglomeration').value = 'none';
+                document.getElementById('specialization-container').style.display = 'none';
+                document.getElementById('industry-specialization').value = 50;
+                document.getElementById('industry-specialization-value').textContent = '50%';
+
+                // 清空結果
+                document.getElementById('optimal-location').innerHTML = '<p>調整參數並點擊"計算最佳區位"按鈕來查看結果。</p>';
+                document.getElementById('cost-breakdown').innerHTML = '';
+                document.getElementById('factor-comparison').innerHTML = '';
+                document.getElementById('labor-analysis').style.display = 'none';
+                document.getElementById('agglom-analysis').style.display = 'none';
+
+                drawCanvas();
+            });
+
+            // 添加理論說明按鈕
+            document.getElementById('show-theory-btn').addEventListener('click', function() {
+                const theoryExplanation = document.getElementById('theory-explanation');
+                if (theoryExplanation.style.display === 'none') {
+                    theoryExplanation.style.display = 'block';
+                    this.textContent = '隱藏韋伯理論說明';
+                } else {
+                    theoryExplanation.style.display = 'none';
+                    this.textContent = '顯示韋伯理論說明';
+                }
+            });
+
+            // 添加調試按鈕功能
+            document.getElementById('toggle-debug').addEventListener('click', function() {
+                debugMode = !debugMode;
+                const debugInfo = document.getElementById('debug-info');
+                if (debugMode) {
+                    debugInfo.style.display = 'block';
+                    this.textContent = '隱藏調試信息';
+                } else {
+                    debugInfo.style.display = 'none';
+                    this.textContent = '顯示調試信息';
+                }
+            });
+
+            // 響應窗口大小變化
+            window.addEventListener('resize', function() {
+                const container = document.getElementById('canvas-container');
+                canvas.width = container.offsetWidth;
+                drawCanvas();
+            });
+        };
+    </script>
+</body>
+</html>
