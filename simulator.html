@@ -61,12 +61,29 @@
 
         .title-container {
             flex: 0 0 auto;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
 
         h1, h2, h3, h4 {
             color: var(--text-color);
             margin-top: 0;
+        }
+
+        h1 {
+            /* 減少 H1 的字體大小 */
+            font-size: 18px;
+            /* 減少 H1 內部的上邊距和下邊距 */
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
+
+        /* 確保其他標題 h2, h3, h4 的樣式不受影響，或只調整 h2 */
+        h2, h3, h4 {
+            color: var(--text-color);
+            font-size: 18px;
+            /* 減少 H1 內部的上邊距和下邊距 */
+            margin-top: 3px;
+            margin-bottom: 3px;
         }
 
         .container {
@@ -88,12 +105,12 @@
         .map-section, .control-section, .results-section {
             background: var(--card-color);
             border-radius: 8px;
-            padding: 15px;
+            /* 調整 padding 以節省空間 */
+            padding: 2px 2px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             transition: background-color 0.3s ease;
             display: flex;
             flex-direction: column;
-            /* 讓內容區塊可以垂直擴展 */
             overflow: visible;
         }
 
@@ -104,7 +121,7 @@
 
         .control-tabs {
             display: flex;
-            margin-bottom: 10px;
+            margin-bottom: 2px; /* 減少間距 */
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -114,7 +131,8 @@
             color: var(--secondary-text);
             border: none;
             border-bottom: 3px solid transparent;
-            padding: 10px 15px;
+            /* 略微減少 padding */
+            padding: 8px 15px;
             font-size: 16px;
             transition: all 0.2s ease;
             margin-bottom: -1px;
@@ -131,7 +149,7 @@
         }
 
         .control-panel-content {
-            padding-top: 5px;
+            padding-top: 2px;
         }
 
         .scrollable-content {
@@ -144,7 +162,8 @@
         #canvas-container {
             width: 100%;
             aspect-ratio: 550 / 400;
-            max-height: 400px;
+            /* 允許 resizer 調整高度，但設置上限 */
+            max-height: 320px;
             background-color: var(--card-color);
             border: 1px solid var(--border-color);
             border-radius: 4px;
@@ -155,7 +174,20 @@
         .map-section {
             height: auto;
             min-height: 250px;
+            flex-shrink: 0; /* 確保在 flex column 中不會被控制面板擠壓 */
         }
+
+        /* 桌面模式下，為地圖設定一個適合 6 個網格的高度 (~300px + padding) */
+        @media (min-width: 901px) {
+            .map-section {
+                height: 250px !important; /* 設置固定高度 */
+            }
+            #canvas-container {
+                max-height: 320px;
+                height: 100%;
+            }
+        }
+
 
         canvas {
             display: block;
@@ -182,9 +214,18 @@
         .parameters-grid {
             display: grid;
             grid-template-columns: auto 1fr;
-            gap: 8px 15px;
+            /* 減少垂直間距 */
+            gap: 5px 15px;
             align-items: center;
         }
+
+        /* 減少控制面板內標題的空間 */
+        .control-panel-content h3 {
+            margin-top: 10px !important;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
 
         .full-width {
             grid-column: 1 / span 2;
@@ -206,7 +247,7 @@
         .result-table {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 5px 10px;
+            gap: 3px 10px; /* 減少間距 */
             font-size: 14px;
             margin-top: 5px;
         }
@@ -230,9 +271,10 @@
 
         #material-manager {
             border: 1px solid var(--border-color);
-            padding: 10px;
+            /* 略微減少 padding */
+            padding: 8px;
             border-radius: 4px;
-            margin-bottom: 10px;
+            margin-bottom: 8px; /* 減少間距 */
             grid-column: 1 / span 2;
             background-color: var(--background-color);
         }
@@ -242,15 +284,15 @@
             grid-template-columns: 50px 1fr auto;
             align-items: center;
             gap: 10px;
-            margin-bottom: 5px;
-            padding: 5px 0;
+            margin-bottom: 3px; /* 減少間距 */
+            padding: 3px 0; /* 減少 padding */
             border-bottom: 1px dashed var(--border-color);
         }
 
         .button-group {
             display: flex;
             gap: 10px;
-            margin-top: 15px;
+            margin-top: 10px; /* 減少間距 */
             flex-wrap: wrap;
             justify-content: space-between;
         }
@@ -259,6 +301,18 @@
             flex: 1 1 45%;
             min-width: 120px;
         }
+
+        /* 調整滑塊容器，減少垂直空間佔用 */
+        .slider-container {
+            padding: 2px 0;
+            display: flex;
+            align-items: center;
+        }
+        .slider-container input[type="range"] {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
 
         /* ------------------ Responsive Adjustments ------------------ */
 
@@ -304,7 +358,8 @@
         </div>
         <div class="container" id="main-container" style="grid-template-columns: 67% 33%;">
         <div class="left-column" id="left-column">
-            <div class="map-section" id="map-section" style="height: 38%">
+            <!-- 移除 inline style="height: 38%"，交由 CSS 控制其高度 -->
+            <div class="map-section" id="map-section">
                 <div id="canvas-container">
                     <canvas id="weberCanvas" width="550" height="400"></canvas>
                 </div>
@@ -356,7 +411,8 @@
                             <div class="parameters-grid">
 
                                 <!-- 勞動力因素 -->
-                                <h3 class="full-width labor-control" style="margin-top:10px;">勞動力影響 (勞動力成本權重)</h3>
+                                <!-- 調整標題 margin -->
+                                <h3 class="full-width labor-control">勞動力影響 (勞動力成本權重)</h3>
 
                                 <label for="labor-cost-weight">勞動力成本佔總成本權重</label>
                                 <div class="slider-container">
@@ -384,7 +440,8 @@
                                 </div>
 
                                 <!-- 聚集因素 -->
-                                <h3 class="full-width agglom-control" style="margin-top:15px;">聚集因素影響 (間接成本節省)</h3>
+                                <!-- 調整標題 margin -->
+                                <h3 class="full-width agglom-control">聚集因素影響 (間接成本節省)</h3>
 
                                 <label for="agglomeration" class="agglom-label">聚集經濟潛力</label>
                                 <div class="slider-container">
@@ -832,6 +889,39 @@
             });
         }
 
+        // --- 新增原料的初始化位置邏輯 ---
+        function addMaterial() {
+            const newIndex = materials.length;
+            const newLabel = String.fromCharCode(65 + newIndex);
+
+            let newX, newY;
+
+            // 嘗試找到一個不與現有資源點衝突的位置
+            if (newIndex === 0) {
+                newX = 150; newY = 50;
+            } else if (newIndex === 1) {
+                newX = 450; newY = 50;
+            } else {
+                // 否則，隨機找一個位置
+                newX = 50 + Math.random() * (canvas.width - 100);
+                newY = 50 + Math.random() * (canvas.height - 100);
+            }
+
+
+            const newMaterial = {
+                id: generateUniqueId('M'),
+                x: newX,
+                y: newY,
+                weight: 1.0, // 默認重量
+                color: getMaterialColor(materials.length),
+                label: newLabel
+            };
+
+            materials.push(newMaterial);
+            renderMaterialList();
+            autoCalculateAndStore();
+        }
+
 
         // --- 核心計算函數 (P* 基於實際重量) ---
 
@@ -867,7 +957,7 @@
 
         function calculateOptimalLocation() {
             if (materials.length === 0) {
-                return { optimalPoint: { x: 0, y: 0 }, laborFactor: 1.0, agglomerationFactor: 1.0, laborLocation: false, agglomerationLocation: false };
+                return { optimalPoint: { x: 0, y: 0 }, laborFactor: 1.0, agglomerationFactor: 1.0, laborLocation: false, agglomerationLocation: false, pStarCost: 0, lowestCost: 0, pStarPoint: {x:0, y:0} };
             }
 
             updateGlobalParamsFromUI();
@@ -973,6 +1063,7 @@
 
             let totalLaborCost = transportCost * laborCostWeight;
 
+            // 運輸因素成本 = (1 - Labor_Weight) * Total_Transport + (Labor_Weight * Total_Transport * Labor_Factor)
             let transportOnlyCost = transportCost * (1 - laborCostWeight);
 
             let costBeforeAgglomeration = transportOnlyCost + (totalLaborCost * laborFactor);
@@ -987,7 +1078,12 @@
 
         function calculateAndRenderResults(shouldSave = true) {
 
-            if (materials.length === 0) return;
+            if (materials.length === 0) {
+                 document.getElementById('optimal-location').innerHTML = '<p>請先新增原料產地。</p>';
+                 document.getElementById('factor-comparison').innerHTML = '';
+                 document.getElementById('cost-breakdown').innerHTML = '';
+                 return;
+            }
 
             setTimeout(() => {
 
@@ -998,10 +1094,23 @@
                 const finalTotalCost = analysis.lowestCost;
                 const pStarTotalCost = analysis.pStarCost;
 
-                const laborCostBase = finalTransportCost * laborCostWeight;
-                const laborSavingAmount = laborCostBase * (1 - analysis.laborFactor);
-                const costBeforeAgglom = finalTransportCost - laborSavingAmount;
-                const agglomSavingAmount = costBeforeAgglom * (1 - analysis.agglomerationFactor);
+                // 勞動力和聚集效應的詳細計算
+                const transportCostBase = finalTransportCost;
+                const laborCostBase = transportCostBase * laborCostWeight;
+
+                // 運輸成本（扣除基礎勞動力成本部分）
+                const transportOnlyCostBase = transportCostBase * (1 - laborCostWeight);
+
+                // 計算在最終區位 (O) 上的勞動力成本和節省
+                const laborCostAtOptimal = laborCostBase * analysis.laborFactor;
+                const laborSavingAmount = laborCostBase - laborCostAtOptimal;
+
+                // 計算在最終區位 (O) 上的成本（包含運輸和勞動力，未經聚集修正）
+                const costBeforeAgglomerationAtOptimal = transportOnlyCostBase + laborCostAtOptimal;
+
+                // 計算聚集節省
+                const agglomSavingAmount = costBeforeAgglomerationAtOptimal * (1 - analysis.agglomerationFactor);
+
 
                 // --- 1. 基礎結果 (Result Box) ---
                 const resultElement = document.getElementById('optimal-location');
@@ -1038,7 +1147,7 @@
                         <div class="header" style="margin-top: 10px;">產出製品運輸 (市場 M)</div>
                         <strong>製品運費 (實際運重: ${finalCostDetails.actualProductWeight.toFixed(1)} 噸):</strong> <span>${finalCostDetails.productCost.toFixed(2)} 元</span>
 
-                        <div class="total-row">總運輸成本 (未修正)</div>
+                        <div class="total-row">總運輸成本 (未修正勞動力/聚集)</div>
                         <strong>總額:</strong> <span>${finalTransportCost.toFixed(2)} 元</span>
                     </div>
                 `;
@@ -1047,14 +1156,15 @@
                 const laborAnalysis = document.getElementById('labor-analysis');
                 const laborSavingPercent = (1 - analysis.laborFactor) * 100;
 
-                if (laborSavings !== 'none' || analysis.laborFactor < 1.0) {
+                if (laborCostWeight > 0.0 || analysis.laborFactor < 1.0) {
                     laborAnalysis.style.display = 'block';
                     laborAnalysis.querySelector('#labor-impact-detail').innerHTML = `
                         <div class="result-table">
-                            <strong>勞動力成本權重:</strong> <span>${(laborCostWeight * 100).toFixed(0)}%</span>
-                            <strong>基礎勞動力成本 (假定):</strong> <span>${laborCostBase.toFixed(2)} 元</span>
-                            <strong>實際節省係數:</strong> <span>${laborSavingPercent.toFixed(1) + '%'}</span>
-                            <strong>節省金額:</strong> <span>${laborSavingAmount.toFixed(2)} 元</span>
+                            <strong>勞動力成本佔總運輸的權重:</strong> <span>${(laborCostWeight * 100).toFixed(0)}%</span>
+                            <strong>未修正的勞動力基礎成本:</strong> <span>${laborCostBase.toFixed(2)} 元</span>
+                            <hr style="grid-column: 1 / span 2; border: 0; border-top: 1px dotted var(--border-color); margin: 3px 0;">
+                            <strong>最終區位實際節省百分比:</strong> <span>${laborSavingPercent.toFixed(1) + '%'}</span>
+                            <strong>勞動力成本節省金額:</strong> <span style="color: var(--labor-color); font-weight: bold;">${laborSavingAmount.toFixed(2)} 元</span>
                         </div>
                     `;
                 } else {
@@ -1069,10 +1179,11 @@
                     agglomAnalysis.style.display = 'block';
                     agglomAnalysis.querySelector('#agglom-impact-detail').innerHTML = `
                         <div class="result-table">
-                            <strong>基礎聚集節省潛力:</strong> <span>${(1 - getAgglomerationFactor(agglomeration)) * 100}%</span>
-                            <strong>專業化程度:</strong> <span>${industrySpecialization}%</span>
-                            <strong>最終節省係數:</strong> <span>${agglomSavingPercent.toFixed(1) + '%'}</span>
-                            <strong>間接節省金額:</strong> <span>${agglomSavingAmount.toFixed(2)} 元</span>
+                            <strong>聚集經濟基礎潛力:</strong> <span>${(1 - getAgglomerationFactor(agglomeration)) * 100}%</span>
+                            <strong>產業專業化程度:</strong> <span>${industrySpecialization}%</span>
+                            <hr style="grid-column: 1 / span 2; border: 0; border-top: 1px dotted var(--border-color); margin: 3px 0;">
+                            <strong>最終間接成本節省係數:</strong> <span>${agglomSavingPercent.toFixed(1) + '%'}</span>
+                            <strong>聚集經濟節省金額:</strong> <span style="color: var(--agglom-color); font-weight: bold;">${agglomSavingAmount.toFixed(2)} 元</span>
                         </div>
                     `;
                 } else {
@@ -1084,13 +1195,13 @@
                 let comparisonHTML = `<h4>區位決策總結</h4>`;
 
                 if (analysis.laborLocation || analysis.agglomerationLocation) {
-                    comparisonHTML += `<p>最佳區位 (O) 偏離了純粹的運輸成本最低點 (P*)。</p>`;
+                    comparisonHTML += `<p>最佳區位 (${optimal.label}) 偏離了純粹的運輸成本最低點 (P*)。</p>`;
 
                     if (analysis.laborLocation) {
-                        comparisonHTML += `<p style="color: var(--labor-color);">✓ <strong>勞動力因素：</strong> 勞動力成本節省（${laborSavingAmount.toFixed(2)}元）足以抵消增加的運輸成本，導致區位偏離。</p>`;
+                        comparisonHTML += `<p style="color: var(--labor-color); margin-bottom: 5px;">✓ <strong>勞動力因素：</strong> 勞動力成本節省（${laborSavingAmount.toFixed(2)}元）足以抵消增加的運輸成本，導致區位偏離。</p>`;
                     }
                     if (analysis.agglomerationLocation) {
-                        comparisonHTML += `<p style="color: var(--agglom-color);">✓ <strong>聚集因素：</strong> 聚集經濟節省（${agglomSavingAmount.toFixed(2)}元）導致區位遷移到聚集區以最小化總成本。</p>`;
+                        comparisonHTML += `<p style="color: var(--agglom-color); margin-bottom: 5px;">✓ <strong>聚集因素：</strong> 聚集經濟節省（${agglomSavingAmount.toFixed(2)}元）導致區位遷移到聚集區以最小化總成本。</p>`;
                     }
 
                 } else {
@@ -1163,9 +1274,12 @@
 
             // 確保 canvas 尺寸在首次加載時正確設置
             if (window.innerWidth > 900) {
+                // 在寬屏模式下，canvas 應適應其父容器的高度
+                const mapSection = document.getElementById('map-section');
                 canvas.width = container.offsetWidth;
-                canvas.height = container.offsetHeight;
+                canvas.height = container.offsetHeight; // 首次初始化時，這裡會使用 CSS 設置的 350px 減去 padding
             } else {
+                // 窄屏模式下保持寬高比
                 canvas.width = container.offsetWidth;
                 canvas.height = (container.offsetWidth / 550) * 400;
             }
@@ -1357,6 +1471,7 @@
             if (window.innerWidth > 900) {
                 // 寬屏/桌面模式：由 Resizer/容器寬度控制
                 canvas.width = container.offsetWidth;
+                // 這裡必須從容器獲取高度，因為 CSS 設置了 map-section 的高度
                 canvas.height = container.offsetHeight;
             } else {
                 // 窄屏/移動模式：固定比例
@@ -1412,22 +1527,28 @@
 
             document.addEventListener('mousemove', function(e) {
                 if (isHorizontalResizing) {
+                    e.preventDefault();
                     const deltaY = e.clientY - startY;
                     const containerHeight = mainContainer.offsetHeight;
+
+                    // 估計整個左列的垂直 padding/margin 總和，以便計算可用空間
                     const totalPadding = 40;
 
+                    // 確保地圖高度在 150px 到容器高度的 70% 之間
                     const maxMapHeight = containerHeight * 0.7 - totalPadding;
                     const newMapHeight = Math.max(150, Math.min(startMapHeight + deltaY, maxMapHeight));
 
                     mapSection.style.height = newMapHeight + 'px';
 
-                    canvasContainer.style.height = (newMapHeight - 30) + 'px';
-                    canvas.height = newMapHeight - 30;
+                    // 更新 canvas 容器和 canvas 本身的高度
+                    canvasContainer.style.height = (newMapHeight - 20) + 'px'; // 20px 考慮 mapSection 的 top/bottom padding
+                    canvas.height = canvasContainer.offsetHeight; // 重新設置 canvas 繪圖高度
 
                     drawCanvas();
                 }
 
                 if (isVerticalResizing) {
+                    e.preventDefault();
                     const deltaX = e.clientX - startX;
                     const containerWidth = mainContainer.offsetWidth;
                     const newLeftWidth = Math.max(300, Math.min(startLeftWidth + deltaX, containerWidth - 300));
@@ -1435,6 +1556,7 @@
 
                     mainContainer.style.gridTemplateColumns = `${leftPercentage}% auto`;
 
+                    // 調整 canvas 寬度
                     canvas.width = canvasContainer.offsetWidth;
                     drawCanvas();
                 }
