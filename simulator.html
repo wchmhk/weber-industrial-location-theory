@@ -46,6 +46,7 @@
             color: var(--text-color);
             transition: background-color 0.3s ease, color 0.3s ease;
             height: 100%;
+            /* 允許整個應用程式容器滾動，以應對高度不足的情況 */
             overflow-y: auto;
         }
 
@@ -92,6 +93,12 @@
             transition: background-color 0.3s ease;
             display: flex;
             flex-direction: column;
+            /* 讓內容區塊可以垂直擴展 */
+            overflow: visible;
+        }
+
+        .control-section {
+             /* 允許 controls 內部內容滾動 */
             overflow: hidden;
         }
 
@@ -161,6 +168,11 @@
         .results-section {
             grid-column: 2;
             grid-row: 1 / span 2;
+        }
+
+        .results-section .scrollable-content {
+             /* 讓結果區塊內容可以滾動 */
+            overflow-y: auto;
         }
 
         .controls {
@@ -262,10 +274,12 @@
                 grid-column: 1;
                 width: 100%;
                 margin-top: 0;
+                /* 確保在窄屏下，左右兩列都能有內容高度 */
+                min-height: initial;
             }
             .results-section {
                 grid-row: auto;
-                min-height: 400px;
+                min-height: initial;
             }
 
             .horizontal-resizer, .vertical-resizer {
@@ -466,9 +480,7 @@
         const STEP_BACK_BTN = document.getElementById('step-back-btn');
 
         // --- 核心數據結構 ---
-        // 點位上移 100px (兩個網格)
         let materials = [];
-        // 市場點的 weight 現在代表它的實際運輸拉力，不再是可調的獨立權重
         let market = { x: 275, y: 250, label: '市場(M)', color: '#3498db', weight: 0 };
         let optimal = { x: 0, y: 0, label: 'O', color: '#9b59b6' };
 
@@ -676,6 +688,11 @@
                 ctx.fillText('產業聚集區', agglomerationZone.x - 40, agglomerationZone.y - radius - 10);
             }
 
+            // 計算製品的實際重量 (用於繪圖和 P* 計算)
+            const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
+            const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
+            market.weight = actualProductWeight;
+
             // 繪製韋伯多角形
             const allPoints = [...materials, market];
             if (allPoints.length >= 2) {
@@ -690,10 +707,6 @@
                 ctx.stroke();
             }
 
-            // 計算製品的實際重量 (用於繪圖和 P* 計算)
-            const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
-            const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-            market.weight = actualProductWeight; // 更新 market 的 weight 以反映實際運輸重量 (僅用於計算和顯示)
 
             // 繪製所有點 (包括市場)
             const pointsToDraw = [...materials, market];
@@ -760,7 +773,7 @@
 
             const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
             const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-            market.weight = actualProductWeight;
+            market.weight = actualProductWeight; // 更新市場點的重量
 
             materials.forEach((m, index) => {
                 const materialDiv = document.createElement('div');
@@ -797,7 +810,7 @@
                 <div class="slider-container">
                     <span class="slider-value" style="color: ${market.color}; font-weight: bold;">${market.weight.toFixed(1)} 噸</span>
                 </div>
-                <span>(隨原料和損耗變動)</span>
+                <span>(隨損耗率變動)</span>
             `;
             container.appendChild(marketDiv);
 
@@ -811,12 +824,16 @@
                 });
             });
 
-            // 需要重新綁定 weight-loss 的 input 事件，確保它能更新製品重量顯示
-            document.getElementById('weight-loss').addEventListener('input', autoCalculateAndStore);
+            document.getElementById('weight-loss').removeEventListener('input', autoCalculateAndStore);
+            document.getElementById('weight-loss').addEventListener('input', function() {
+                // 如果重量損失率改變，需要重新渲染列表以更新製品重量
+                renderMaterialList();
+                autoCalculateAndStore();
+            });
         }
 
 
-        // --- 核心計算函數 (P* 修正為基於實際重量) ---
+        // --- 核心計算函數 (P* 基於實際重量) ---
 
         const calculateTransportCostDetails = (location) => {
             updateGlobalParamsFromUI();
@@ -828,9 +845,7 @@
 
             const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
             const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-
-            // 運往市場的有效重量 = 實際產品重量
-            const weightedProductWeight = actualProductWeight; // 現在直接使用實際重量
+            market.weight = actualProductWeight; // 確保市場點的 weight 是最新的
 
             // 原料至工廠運費
             materials.forEach(m => {
@@ -840,13 +855,13 @@
                 materialDetails.push({ label: m.label, weight: m.weight, distance: dist, cost: cost });
             });
 
-            // 工廠至市場運費
+            // 工廠至市場運費 (使用實際產品重量)
             const productDist = distance(location, market);
-            productCost = weightedProductWeight * productDist * transportCost;
+            productCost = actualProductWeight * productDist * transportCost;
 
             totalCost = materialCost + productCost;
 
-            return { totalCost, materialCost, productCost, materialDetails, productDist, actualProductWeight, totalInputWeight, x: location.x, y: location.y, weightedProductWeight };
+            return { totalCost, materialCost, productCost, materialDetails, productDist, actualProductWeight, totalInputWeight, x: location.x, y: location.y };
         };
 
 
@@ -864,7 +879,7 @@
 
             // 1. 計算運輸成本最小化的位置 (P*) - 加權平均法 (使用實際製品重量)
 
-            const productWeightForPStar = actualProductWeight; // 使用實際製品重量作為拉力
+            const productWeightForPStar = actualProductWeight;
 
             let numeratorX = productWeightForPStar * market.x;
             let numeratorY = productWeightForPStar * market.y;
@@ -881,7 +896,6 @@
 
             let optimalPoint = { x: optimalX, y: optimalY };
 
-            // ... [後續的勞動力和聚集偏離計算邏輯不變，因為它們基於運輸成本總額] ...
 
             // 2. 設置初始點和成本
             let currentOptimalPoint = optimalPoint;
@@ -1011,7 +1025,6 @@
                 let totalMaterialCost = 0;
 
                 finalCostDetails.materialDetails.forEach(m => {
-                    // 修正單位：噸
                     materialCostHTML += `<strong>原料${m.label} (${m.weight.toFixed(1)}噸):</strong> <span>${m.cost.toFixed(2)} 元</span>`;
                     totalMaterialCost += m.cost;
                 });
@@ -1128,15 +1141,13 @@
         // 初始化點位和Canvas
         function initializeApp() {
             const container = document.getElementById('canvas-container');
-            canvas.width = container.offsetWidth;
-            canvas.height = container.offsetHeight;
 
-            // 調整初始點位，上移 100px
+            // 由於 Canvas 寬高可能會在 resize 中調整，這裡只需要初始化點位
+
             materials = [
                 { id: generateUniqueId('M'), x: 150, y: 50, weight: 3, color: '#e74c3c', label: 'A' },
                 { id: generateUniqueId('M'), x: 450, y: 50, weight: 2, color: '#2ecc71', label: 'B' }
             ];
-            // market.weight 將由原料和損耗率計算得出
             market = { x: 275, y: 250, label: '市場(M)', color: '#3498db', weight: 0 };
             optimal = { x: 0, y: 0, label: 'O', color: '#9b59b6' };
             laborZone = { x: 100, y: 200, radius: 0 };
@@ -1148,7 +1159,16 @@
 
             initResizers();
             setupControlTabs();
-            updateUIFromState(); // 確保 UI 與全局變量同步
+            updateUIFromState();
+
+            // 確保 canvas 尺寸在首次加載時正確設置
+            if (window.innerWidth > 900) {
+                canvas.width = container.offsetWidth;
+                canvas.height = container.offsetHeight;
+            } else {
+                canvas.width = container.offsetWidth;
+                canvas.height = (container.offsetWidth / 550) * 400;
+            }
 
             autoCalculateAndStore();
         }
@@ -1156,7 +1176,7 @@
         window.onload = initializeApp;
 
 
-        // --- UI 事件綁定 (修正 input 事件處理) ---
+        // --- UI 事件綁定 (保持不變) ---
 
         document.getElementById('add-material-btn').addEventListener('click', function() {
             addMaterial();
@@ -1182,7 +1202,6 @@
                         document.getElementById('specialization-container').style.display = value === 'none' ? 'none' : 'block';
                     }
 
-                    // 特殊處理：如果 weight-loss 改變，需要重新渲染原料列表來更新製品重量顯示
                     if (id === 'weight-loss') {
                         renderMaterialList();
                     }
@@ -1233,21 +1252,26 @@
             }
         });
 
-        // --- 畫布拖曳邏輯 (保持不變) ---
+        // --- 畫布拖曳邏輯 (修復市場點拖曳及觸控事件) ---
+
         function findPointAt(x, y) {
+            // 檢查市場點 (市場點應優先於原料點被檢查，以確保拖曳行為的明確性)
             const distM = distance({x, y}, market);
             if (distM < 15) return { type: 'market', point: market };
 
+            // 檢查原料點
             for (const m of materials) {
                 const dist = distance({x, y}, m);
                 if (dist < 15) return { type: 'material', point: m };
             }
 
+            // 檢查勞動力區中心
             if (laborSavings !== 'none') {
                 const distLabor = distance({x, y}, laborZone);
                 if (distLabor < 15) return { type: 'laborZone', point: laborZone };
             }
 
+            // 檢查聚集區中心
             if (agglomeration !== 'none') {
                 const distAgglom = distance({x, y}, agglomerationZone);
                 if (distAgglom < 15) return { type: 'agglomerationZone', point: agglomerationZone };
@@ -1258,10 +1282,10 @@
 
         let dragTimeout;
 
-        canvas.addEventListener('mousedown', function(e) {
+        function handleDragStart(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
 
             const clicked = findPointAt(x, y);
             if (clicked) {
@@ -1269,13 +1293,13 @@
                 selectedPoint = clicked;
                 if (dragTimeout) clearTimeout(dragTimeout);
             }
-        });
+        }
 
-        canvas.addEventListener('mousemove', function(e) {
+        function handleDragMove(clientX, clientY) {
             if (isDragging && selectedPoint) {
                 const rect = canvas.getBoundingClientRect();
-                const newX = e.clientX - rect.left;
-                const newY = e.clientY - rect.top;
+                const newX = clientX - rect.left;
+                const newY = clientY - rect.top;
 
                 const clampedX = Math.max(20, Math.min(canvas.width - 20, newX));
                 const clampedY = Math.max(20, Math.min(canvas.height - 20, newY));
@@ -1290,23 +1314,52 @@
                 if (dragTimeout) clearTimeout(dragTimeout);
                 dragTimeout = setTimeout(autoCalculateAndStore, 150);
             }
-        });
+        }
 
-        canvas.addEventListener('mouseup', function() {
+        function handleDragEnd() {
             if (isDragging) {
                 isDragging = false;
                 selectedPoint = null;
                 if (dragTimeout) clearTimeout(dragTimeout);
                 autoCalculateAndStore();
             }
+        }
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', function(e) {
+            handleDragStart(e.clientX, e.clientY);
         });
+        canvas.addEventListener('mousemove', function(e) {
+            handleDragMove(e.clientX, e.clientY);
+        });
+        canvas.addEventListener('mouseup', handleDragEnd);
+        canvas.addEventListener('mouseleave', handleDragEnd); // 確保在移出畫布時停止拖曳
+
+        // Touch Events (修復 iPad 拖曳問題)
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleDragStart(touch.clientX, touch.clientY);
+        });
+
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                handleDragMove(touch.clientX, touch.clientY);
+            }
+        });
+
+        canvas.addEventListener('touchend', handleDragEnd);
 
         window.addEventListener('resize', function() {
             const container = document.getElementById('canvas-container');
             if (window.innerWidth > 900) {
+                // 寬屏/桌面模式：由 Resizer/容器寬度控制
                 canvas.width = container.offsetWidth;
                 canvas.height = container.offsetHeight;
             } else {
+                // 窄屏/移動模式：固定比例
                 canvas.width = container.offsetWidth;
                 canvas.height = (container.offsetWidth / 550) * 400;
             }
@@ -1397,8 +1450,28 @@
                 }
             });
 
-            mapControlResizer.addEventListener('touchstart', (e) => { e.preventDefault(); });
-            document.getElementById('column-resizer').addEventListener('touchstart', (e) => { e.preventDefault(); });
+            mapControlResizer.addEventListener('touchstart', (e) => {
+                if (window.innerWidth > 900) {
+                    isHorizontalResizing = true;
+                    startY = e.touches[0].clientY;
+                    startMapHeight = mapSection.offsetHeight;
+                    e.preventDefault();
+                }
+            });
+            document.getElementById('column-resizer').addEventListener('touchstart', (e) => {
+                if (window.innerWidth > 900) {
+                    isVerticalResizing = true;
+                    startX = e.touches[0].clientX;
+                    startLeftWidth = document.getElementById('left-column').offsetWidth;
+                    e.preventDefault();
+                }
+            });
+            document.addEventListener('touchend', function() {
+                if (isHorizontalResizing || isVerticalResizing) {
+                    isHorizontalResizing = false;
+                    isVerticalResizing = false;
+                }
+            });
         }
 
     </script>
