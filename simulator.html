@@ -61,29 +61,25 @@
 
         .title-container {
             flex: 0 0 auto;
-            margin-bottom: 4px;
+            margin-bottom: 5px; /* 減少底部間距 */
         }
 
-        h1, h2, h3, h4 {
+        h1 {
+            color: var(--text-color);
+            font-size: 24px; /* 縮小標題字體 */
+            margin-top: 5px; /* 減少 H1 上邊距 */
+            margin-bottom: 5px; /* 減少 H1 下邊距 */
+        }
+
+        h2, h3, h4 {
             color: var(--text-color);
             margin-top: 0;
         }
 
-        h1 {
-            /* 減少 H1 的字體大小 */
-            font-size: 18px;
-            /* 減少 H1 內部的上邊距和下邊距 */
-            margin-top: 3px;
-            margin-bottom: 3px;
-        }
-
-        /* 確保其他標題 h2, h3, h4 的樣式不受影響，或只調整 h2 */
-        h2, h3, h4 {
-            color: var(--text-color);
-            font-size: 18px;
-            /* 減少 H1 內部的上邊距和下邊距 */
-            margin-top: 3px;
-            margin-bottom: 3px;
+        /* 調整 H2 以適應按鈕並排 */
+        .results-section h2 {
+            margin: 0;
+            font-size: 1.5em;
         }
 
         .container {
@@ -106,7 +102,7 @@
             background: var(--card-color);
             border-radius: 8px;
             /* 調整 padding 以節省空間 */
-            padding: 2px 2px;
+            padding: 10px 15px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             transition: background-color 0.3s ease;
             display: flex;
@@ -121,7 +117,7 @@
 
         .control-tabs {
             display: flex;
-            margin-bottom: 2px; /* 減少間距 */
+            margin-bottom: 5px; /* 減少間距 */
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -149,7 +145,7 @@
         }
 
         .control-panel-content {
-            padding-top: 2px;
+            padding-top: 5px;
         }
 
         .scrollable-content {
@@ -180,7 +176,7 @@
         /* 桌面模式下，為地圖設定一個適合 6 個網格的高度 (~300px + padding) */
         @media (min-width: 901px) {
             .map-section {
-                height: 250px !important; /* 設置固定高度 */
+                height: 350px !important; /* 使用 350px 作為標準，保持視覺平衡 */
             }
             #canvas-container {
                 max-height: 320px;
@@ -390,11 +386,15 @@
                             </div>
 
                             <div class="parameters-grid">
-                                <label for="weight-loss">重量損失率 (%)</label>
+
+                                <!-- 新增製品/市場(M)的重量控制項 -->
+                                <label for="market-weight">製品/市場(M)重量 (噸)</label>
                                 <div class="slider-container">
-                                    <input type="range" id="weight-loss" min="0" max="90" value="30" step="5">
-                                    <span id="weight-loss-value" class="slider-value">30%</span>
+                                    <input type="range" id="market-weight" min="0.5" max="10" value="3.5" step="0.1">
+                                    <span id="market-weight-value" class="slider-value">3.5 噸</span>
                                 </div>
+
+                                <!-- 移除重量損失率控制項 -->
 
                                 <label for="transport-cost">運輸成本 (每公里/噸)</label>
                                 <div class="slider-container">
@@ -482,7 +482,13 @@
         </div>
 
         <div class="results-section" id="results-section">
-            <h2>分析結果</h2>
+            <!-- 新增按鈕容器 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h2>分析結果</h2>
+                <button id="find-optimal-btn" style="padding: 5px 10px; font-size: 14px; background-color: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    找到最低成本點 (P*/O)
+                </button>
+            </div>
             <div class="scrollable-content">
 
             <div id="theory-explanation" style="display:none;" class="info-panel">
@@ -538,10 +544,11 @@
 
         // --- 核心數據結構 ---
         let materials = [];
-        let market = { x: 275, y: 250, label: '市場(M)', color: '#3498db', weight: 0 };
-        let optimal = { x: 0, y: 0, label: 'O', color: '#9b59b6' };
+        // 製品重量現在是獨立輸入
+        let market = { x: 275, y: 250, label: '市場(M)', color: '#3498db', weight: 3.5 };
+        let optimal = { x: 0, y: 0, label: 'O', color: '#9b59b6', isManual: false };
 
-        let weightLoss = 30;
+        // 移除 weightLoss
         let transportCost = 5;
         let laborSavings = 'none';
         let laborIntensity = 50;
@@ -557,19 +564,56 @@
         let selectedPoint = null;
         let debugMode = false;
 
-        // --- 歷史記錄機制 (保持不變) ---
+        // --- 歷史記錄機制 ---
         const MAX_HISTORY = 20;
         let historyStack = [];
         let lastCalculationState = null;
+
+        // 新增：去抖定時器
+        let debounceTimer;
+
+        // --- 輔助函數：去抖 (Debounce) ---
+        function debounce(func, delay) {
+            return function(...args) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    func.apply(this, args);
+                }, delay);
+            };
+        }
+
+        // 實際執行計算的函數
+        const runCalculationAndStore = () => {
+            calculateAndRenderResults(true);
+        };
+
+        // 去抖後的計算函數 (只在停止操作 200ms 後執行)
+        const debouncedCalculateAndStore = debounce(runCalculationAndStore, 200);
+
+
+        // 自動計算和存儲 (用於單次操作或非去抖操作的入口)
+        const autoCalculateAndStore = () => {
+            // 對於拖曳點位，我們使用更快的 dragTimeout 進行節流
+            if (isDragging) {
+                // 拖曳點位時，使用節流（Throttle）
+                if (dragTimeout) clearTimeout(dragTimeout);
+                dragTimeout = setTimeout(runCalculationAndStore, 150);
+            } else {
+                // 對於其他單次操作（如按鈕點擊），立即執行
+                runCalculationAndStore();
+            }
+        };
+
 
         function saveCurrentState() {
             updateGlobalParamsFromUI();
             const currentState = {
                 materials: materials.map(m => ({ ...m })),
                 market: { ...market },
-                optimal: { ...optimal },
+                optimal: { x: optimal.x, y: optimal.y, label: optimal.label, color: optimal.color, isManual: false }, // 不保存 manual 狀態
                 params: {
-                    weightLoss, transportCost, laborCostWeight, laborSavings, laborIntensity, agglomeration, industrySpecialization
+                    // weightLoss, // 移除
+                    transportCost, laborCostWeight, laborSavings, laborIntensity, agglomeration, industrySpecialization
                 },
                 zones: {
                     laborZone: { ...laborZone },
@@ -591,7 +635,7 @@
             historyStack.pop();
             const prevState = historyStack[historyStack.length - 1];
 
-            weightLoss = prevState.params.weightLoss;
+            // weightLoss = prevState.params.weightLoss; // 移除
             transportCost = prevState.params.transportCost;
             laborCostWeight = prevState.params.laborCostWeight;
             laborSavings = prevState.params.laborSavings;
@@ -601,7 +645,7 @@
 
             materials = prevState.materials.map(m => ({ ...m }));
             market = { ...prevState.market };
-            optimal = { ...prevState.optimal };
+            optimal = { ...prevState.optimal, isManual: false }; // 恢復狀態時取消 manual 模式
             laborZone = { ...prevState.zones.laborZone };
             agglomerationZone = { ...prevState.zones.agglomerationZone };
 
@@ -611,8 +655,15 @@
         }
 
         function updateUIFromState() {
-            document.getElementById('weight-loss').value = weightLoss;
-            document.getElementById('weight-loss-value').textContent = weightLoss + '%';
+            // 移除 weight-loss 相關更新
+
+            // 新增 market-weight UI 更新
+            const marketWeightInput = document.getElementById('market-weight');
+            if (marketWeightInput) {
+                marketWeightInput.value = market.weight;
+                document.getElementById('market-weight-value').textContent = market.weight.toFixed(1) + ' 噸';
+            }
+
             document.getElementById('transport-cost').value = transportCost;
             document.getElementById('transport-cost-value').textContent = transportCost.toFixed(1);
 
@@ -633,7 +684,14 @@
         }
 
         function updateGlobalParamsFromUI() {
-            weightLoss = parseInt(document.getElementById('weight-loss').value);
+            // weightLoss = parseInt(document.getElementById('weight-loss').value); // 移除
+
+            // 新增 marketWeight 更新
+            const marketWeightInput = document.getElementById('market-weight');
+            if (marketWeightInput) {
+                 market.weight = parseFloat(marketWeightInput.value);
+            }
+
             transportCost = parseFloat(document.getElementById('transport-cost').value);
             laborCostWeight = parseFloat(document.getElementById('labor-cost-weight').value);
             laborSavings = document.getElementById('labor-savings').value;
@@ -643,7 +701,7 @@
         }
 
 
-        // --- 輔助函數 (保持不變) ---
+        // --- 輔助函數 ---
 
         function getLaborSavingFactor(laborSavingsType) {
             switch(laborSavingsType) {
@@ -665,7 +723,7 @@
             return distance(point, circle) <= circle.radius;
         }
 
-        // --- 繪圖函數 (修正單位) ---
+        // --- 繪圖函數 ---
         function getMaterialColor(id) {
             const colors = ['#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c'];
             const index = materials.findIndex(m => m.id === id);
@@ -745,10 +803,9 @@
                 ctx.fillText('產業聚集區', agglomerationZone.x - 40, agglomerationZone.y - radius - 10);
             }
 
-            // 計算製品的實際重量 (用於繪圖和 P* 計算)
+            // 計算製品的實際重量
             const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
-            const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-            market.weight = actualProductWeight;
+            const actualProductWeight = market.weight;
 
             // 繪製韋伯多角形
             const allPoints = [...materials, market];
@@ -786,7 +843,7 @@
                 ctx.fillText(`${point.weight.toFixed(1)}噸`, point.x + 15, point.y + 15);
             }
 
-            // 如果最佳點已計算，繪製連接線
+            // 如果最佳點已計算，繪製連接線和點
             if (optimal.x || optimal.y) {
                 ctx.setLineDash([5, 3]);
                 materials.forEach(material => {
@@ -807,10 +864,19 @@
 
                 ctx.setLineDash([]);
 
+                // 繪製 P/P*/O 點
                 ctx.beginPath();
                 ctx.arc(optimal.x, optimal.y, 10, 0, Math.PI * 2);
                 ctx.fillStyle = optimal.color;
                 ctx.fill();
+
+                // 如果是手動拖曳，稍微改變樣式
+                if (optimal.isManual) {
+                    ctx.strokeStyle = textColor;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
                 ctx.font = '16px Arial';
                 ctx.fillStyle = textColor;
                 ctx.fillText(optimal.label, optimal.x + 15, optimal.y - 5);
@@ -818,7 +884,7 @@
         }
 
 
-        // --- 動態原料管理函數 (市場固定，反映製品重量) ---
+        // --- 動態原料管理函數 ---
 
         function generateUniqueId(prefix) {
             return prefix + '_' + Date.now() + Math.floor(Math.random() * 1000);
@@ -828,9 +894,7 @@
             const container = document.getElementById('material-list-container');
             container.innerHTML = '';
 
-            const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
-            const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-            market.weight = actualProductWeight; // 更新市場點的重量
+            // 不再計算製品重量，直接使用 market.weight
 
             materials.forEach((m, index) => {
                 const materialDiv = document.createElement('div');
@@ -855,21 +919,9 @@
                     const newWeight = parseFloat(e.target.value);
                     m.weight = newWeight;
                     document.getElementById(`weight-value-${m.id}`).textContent = newWeight.toFixed(1) + ' 噸';
-                    autoCalculateAndStore();
+                    debouncedCalculateAndStore(); // 使用去抖
                 });
             });
-
-            // 市場點/製品重量的顯示（不可調，由原料和損失率決定）
-            const marketDiv = document.createElement('div');
-            marketDiv.className = 'material-item';
-            marketDiv.innerHTML = `
-                <span class="material-label" style="color: ${market.color}">製品 (M):</span>
-                <div class="slider-container">
-                    <span class="slider-value" style="color: ${market.color}; font-weight: bold;">${market.weight.toFixed(1)} 噸</span>
-                </div>
-                <span>(隨損耗率變動)</span>
-            `;
-            container.appendChild(marketDiv);
 
 
             container.querySelectorAll('.remove-material-btn').forEach(btn => {
@@ -877,15 +929,8 @@
                     const idToRemove = this.dataset.id;
                     materials = materials.filter(m => m.id !== idToRemove);
                     renderMaterialList();
-                    autoCalculateAndStore();
+                    autoCalculateAndStore(); // 使用非去抖，因為是單次點擊操作
                 });
-            });
-
-            document.getElementById('weight-loss').removeEventListener('input', autoCalculateAndStore);
-            document.getElementById('weight-loss').addEventListener('input', function() {
-                // 如果重量損失率改變，需要重新渲染列表以更新製品重量
-                renderMaterialList();
-                autoCalculateAndStore();
             });
         }
 
@@ -934,8 +979,7 @@
             let materialDetails = [];
 
             const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
-            const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-            market.weight = actualProductWeight; // 確保市場點的 weight 是最新的
+            const actualProductWeight = market.weight; // 直接使用市場點的重量
 
             // 原料至工廠運費
             materials.forEach(m => {
@@ -962,13 +1006,10 @@
 
             updateGlobalParamsFromUI();
 
-            // 確保每次計算都更新 market.weight
             const totalInputWeight = materials.reduce((sum, m) => sum + m.weight, 0);
-            const actualProductWeight = totalInputWeight * (1 - weightLoss/100);
-            market.weight = actualProductWeight;
+            const actualProductWeight = market.weight; // 直接使用市場重量
 
-            // 1. 計算運輸成本最小化的位置 (P*) - 加權平均法 (使用實際製品重量)
-
+            // 1. 計算運輸成本最小化的位置 (P*) - 加權平均法
             const productWeightForPStar = actualProductWeight;
 
             let numeratorX = productWeightForPStar * market.x;
@@ -1041,12 +1082,8 @@
                 }
             }
 
-            optimal.x = currentOptimalPoint.x;
-            optimal.y = currentOptimalPoint.y;
-            optimal.label = (laborLocation || agglomerationLocation) ? 'O' : 'P*';
-
             return {
-                optimalPoint: optimal,
+                optimalPoint: currentOptimalPoint, // 返回計算出的真正的最低成本點 (P*/O)
                 laborFactor: currentLaborFactor,
                 agglomerationFactor: currentAgglomerationFactor,
                 pStarCost: pStarTotalCost,
@@ -1062,8 +1099,6 @@
             const transportCost = details.totalCost;
 
             let totalLaborCost = transportCost * laborCostWeight;
-
-            // 運輸因素成本 = (1 - Labor_Weight) * Total_Transport + (Labor_Weight * Total_Transport * Labor_Factor)
             let transportOnlyCost = transportCost * (1 - laborCostWeight);
 
             let costBeforeAgglomeration = transportOnlyCost + (totalLaborCost * laborFactor);
@@ -1074,7 +1109,7 @@
         }
 
 
-        // --- 結果渲染函數 (修正顯示單位) ---
+        // --- 結果渲染函數 ---
 
         function calculateAndRenderResults(shouldSave = true) {
 
@@ -1087,29 +1122,42 @@
 
             setTimeout(() => {
 
+                // 1. 自動計算真正的最低成本點 (P*/O)
                 const analysis = calculateOptimalLocation();
 
-                const finalCostDetails = calculateTransportCostDetails(analysis.optimalPoint);
+                let displayPoint;
+                let finalCost;
+                let finalCostDetails;
+                let finalLabel;
+                let isManualTest = optimal.isManual;
+
+
+                if (isManualTest) {
+                    // 如果是手動模式，使用當前 optimal 的坐標作為測試點
+                    displayPoint = {x: optimal.x, y: optimal.y};
+                    finalCostDetails = calculateTransportCostDetails(displayPoint);
+                    // 手動測試時，總成本僅顯示純運輸成本
+                    finalCost = finalCostDetails.totalCost;
+                    finalLabel = 'P (手動測試)';
+
+                    // 清除勞動力/聚集分析的顯示
+                    document.getElementById('labor-analysis').style.display = 'none';
+                    document.getElementById('agglom-analysis').style.display = 'none';
+
+                } else {
+                    // 自動模式：將 global optimal 設置為計算出的最低成本點
+                    optimal.x = analysis.optimalPoint.x;
+                    optimal.y = analysis.optimalPoint.y;
+                    optimal.label = (analysis.laborLocation || analysis.agglomerationLocation) ? 'O' : 'P*';
+
+                    displayPoint = optimal;
+                    finalCost = analysis.lowestCost;
+                    finalCostDetails = calculateTransportCostDetails(optimal);
+                    finalLabel = optimal.label;
+                }
+
                 const finalTransportCost = finalCostDetails.totalCost;
-                const finalTotalCost = analysis.lowestCost;
-                const pStarTotalCost = analysis.pStarCost;
-
-                // 勞動力和聚集效應的詳細計算
-                const transportCostBase = finalTransportCost;
-                const laborCostBase = transportCostBase * laborCostWeight;
-
-                // 運輸成本（扣除基礎勞動力成本部分）
-                const transportOnlyCostBase = transportCostBase * (1 - laborCostWeight);
-
-                // 計算在最終區位 (O) 上的勞動力成本和節省
-                const laborCostAtOptimal = laborCostBase * analysis.laborFactor;
-                const laborSavingAmount = laborCostBase - laborCostAtOptimal;
-
-                // 計算在最終區位 (O) 上的成本（包含運輸和勞動力，未經聚集修正）
-                const costBeforeAgglomerationAtOptimal = transportOnlyCostBase + laborCostAtOptimal;
-
-                // 計算聚集節省
-                const agglomSavingAmount = costBeforeAgglomerationAtOptimal * (1 - analysis.agglomerationFactor);
+                const pStarTotalCost = calculateFinalCost(analysis.pStarPoint, 1.0, 1.0); // P* 的純運輸成本
 
 
                 // --- 1. 基礎結果 (Result Box) ---
@@ -1117,12 +1165,19 @@
                 resultElement.innerHTML = `
                     <h4>最佳區位綜述</h4>
                     <div class="result-table">
-                        <strong style="font-size: 16px;">最終區位坐標 (${optimal.label}):</strong> <span>(${Math.round(optimal.x)}, ${Math.round(optimal.y)})</span>
+                        <strong style="font-size: 16px;">當前測試點 (${finalLabel}):</strong> <span>(${Math.round(displayPoint.x)}, ${Math.round(displayPoint.y)})</span>
                         <strong style="font-size: 16px;">運輸成本最低點 (P*):</strong> <span>(${Math.round(analysis.pStarPoint.x)}, ${Math.round(analysis.pStarPoint.y)})</span>
 
-                        <div class="total-row">總成本分析</div>
-                        <strong>運輸最低總成本 (P*):</strong> <span>${pStarTotalCost.toFixed(2)} 元</span>
-                        <strong>最終總成本 (${optimal.label}):</strong> <span style="font-weight: bold; color: var(--primary-color)">${finalTotalCost.toFixed(2)} 元</span>
+                        <div class="total-row">純運輸總成本分析</div>
+                        <strong>P* 運輸總成本:</strong> <span>${pStarTotalCost.toFixed(2)} 元</span>
+                        <strong>當前點運輸總成本:</strong> <span style="font-weight: bold; color: ${isManualTest ? 'orange' : 'var(--primary-color)'}">
+                            ${finalTransportCost.toFixed(2)} 元
+                        </span>
+
+                        ${!isManualTest ? `
+                            <div class="total-row">最終最低總成本 (O/P*)</div>
+                            <strong>最終總成本 (${finalLabel}):</strong> <span style="font-weight: bold; color: var(--primary-color)">${finalCost.toFixed(2)} 元</span>
+                        ` : ''}
 
                     </div>
                 `;
@@ -1139,7 +1194,7 @@
                 });
 
                 costBreakdown.innerHTML = `
-                    <h4>運輸成本明細 (在最終區位 ${optimal.label})</h4>
+                    <h4>運輸成本明細 (在當前區位 ${finalLabel})</h4>
                     <div class="result-table">
                         <div class="header">投入原料運輸 (總投入: ${finalCostDetails.totalInputWeight.toFixed(1)} 噸)</div>
                         ${materialCostHTML}
@@ -1147,84 +1202,107 @@
                         <div class="header" style="margin-top: 10px;">產出製品運輸 (市場 M)</div>
                         <strong>製品運費 (實際運重: ${finalCostDetails.actualProductWeight.toFixed(1)} 噸):</strong> <span>${finalCostDetails.productCost.toFixed(2)} 元</span>
 
-                        <div class="total-row">總運輸成本 (未修正勞動力/聚集)</div>
+                        <div class="total-row">總運輸成本</div>
                         <strong>總額:</strong> <span>${finalTransportCost.toFixed(2)} 元</span>
                     </div>
                 `;
 
-                // --- 3. 勞動力分析 ---
-                const laborAnalysis = document.getElementById('labor-analysis');
-                const laborSavingPercent = (1 - analysis.laborFactor) * 100;
+                // --- 3, 4, 5. 勞動力, 聚集, 總結 (僅在自動模式下執行) ---
 
-                if (laborCostWeight > 0.0 || analysis.laborFactor < 1.0) {
-                    laborAnalysis.style.display = 'block';
-                    laborAnalysis.querySelector('#labor-impact-detail').innerHTML = `
-                        <div class="result-table">
-                            <strong>勞動力成本佔總運輸的權重:</strong> <span>${(laborCostWeight * 100).toFixed(0)}%</span>
-                            <strong>未修正的勞動力基礎成本:</strong> <span>${laborCostBase.toFixed(2)} 元</span>
-                            <hr style="grid-column: 1 / span 2; border: 0; border-top: 1px dotted var(--border-color); margin: 3px 0;">
-                            <strong>最終區位實際節省百分比:</strong> <span>${laborSavingPercent.toFixed(1) + '%'}</span>
-                            <strong>勞動力成本節省金額:</strong> <span style="color: var(--labor-color); font-weight: bold;">${laborSavingAmount.toFixed(2)} 元</span>
-                        </div>
-                    `;
-                } else {
-                    laborAnalysis.style.display = 'none';
-                }
-
-                // --- 4. 聚集分析 ---
-                const agglomAnalysis = document.getElementById('agglom-analysis');
-                const agglomSavingPercent = (1 - analysis.agglomerationFactor) * 100;
-
-                if (agglomeration !== 'none' || analysis.agglomerationFactor < 1.0) {
-                    agglomAnalysis.style.display = 'block';
-                    agglomAnalysis.querySelector('#agglom-impact-detail').innerHTML = `
-                        <div class="result-table">
-                            <strong>聚集經濟基礎潛力:</strong> <span>${(1 - getAgglomerationFactor(agglomeration)) * 100}%</span>
-                            <strong>產業專業化程度:</strong> <span>${industrySpecialization}%</span>
-                            <hr style="grid-column: 1 / span 2; border: 0; border-top: 1px dotted var(--border-color); margin: 3px 0;">
-                            <strong>最終間接成本節省係數:</strong> <span>${agglomSavingPercent.toFixed(1) + '%'}</span>
-                            <strong>聚集經濟節省金額:</strong> <span style="color: var(--agglom-color); font-weight: bold;">${agglomSavingAmount.toFixed(2)} 元</span>
-                        </div>
-                    `;
-                } else {
-                    agglomAnalysis.style.display = 'none';
-                }
-
-                // --- 5. 因素總結 ---
                 const factorComparison = document.getElementById('factor-comparison');
-                let comparisonHTML = `<h4>區位決策總結</h4>`;
 
-                if (analysis.laborLocation || analysis.agglomerationLocation) {
-                    comparisonHTML += `<p>最佳區位 (${optimal.label}) 偏離了純粹的運輸成本最低點 (P*)。</p>`;
-
-                    if (analysis.laborLocation) {
-                        comparisonHTML += `<p style="color: var(--labor-color); margin-bottom: 5px;">✓ <strong>勞動力因素：</strong> 勞動力成本節省（${laborSavingAmount.toFixed(2)}元）足以抵消增加的運輸成本，導致區位偏離。</p>`;
-                    }
-                    if (analysis.agglomerationLocation) {
-                        comparisonHTML += `<p style="color: var(--agglom-color); margin-bottom: 5px;">✓ <strong>聚集因素：</strong> 聚集經濟節省（${agglomSavingAmount.toFixed(2)}元）導致區位遷移到聚集區以最小化總成本。</p>`;
-                    }
+                if (isManualTest) {
+                    factorComparison.innerHTML = `
+                        <h4>區位決策總結</h4>
+                        <p>您正在手動測試位置 P。該位置的純運輸成本為 ${finalTransportCost.toFixed(2)} 元。</p>
+                        ${finalTransportCost > pStarTotalCost + 0.01 ? // 允許浮點數誤差
+                            `<p style="color: #e74c3c;">✘ 當前位置 P 的運輸成本高於純運輸最低點 P* (${pStarTotalCost.toFixed(2)} 元)。</p>` :
+                            `<p style="color: #2ecc71;">✓ 當前位置 P 的運輸成本已達到或接近純運輸最低點 P*。</p>`
+                        }
+                    `;
 
                 } else {
-                    comparisonHTML += `<p>在此情境下，<strong>運輸成本</strong>是唯一決定區位的因素。</p>`;
-                    comparisonHTML += `<p>勞動力或集聚效應不足以抵消額外運輸成本，因此區位位於純運輸最低點 P*。</p>`;
-                }
-                factorComparison.innerHTML = comparisonHTML;
+                    // --- 正常模式下的詳細分析 ---
+
+                    const transportCostBase = finalTransportCost;
+                    const laborCostBase = transportCostBase * laborCostWeight;
+                    const transportOnlyCostBase = transportCostBase * (1 - laborCostWeight);
+                    const laborCostAtOptimal = laborCostBase * analysis.laborFactor;
+                    const laborSavingAmount = laborCostBase - laborCostAtOptimal;
+                    const costBeforeAgglomerationAtOptimal = transportOnlyCostBase + laborCostAtOptimal;
+                    const agglomSavingAmount = costBeforeAgglomerationAtOptimal * (1 - analysis.agglomerationFactor);
+
+
+                    // 勞動力分析
+                    const laborAnalysis = document.getElementById('labor-analysis');
+                    const laborSavingPercent = (1 - analysis.laborFactor) * 100;
+
+                    if (laborCostWeight > 0.0 || analysis.laborFactor < 1.0) {
+                        laborAnalysis.style.display = 'block';
+                        laborAnalysis.querySelector('#labor-impact-detail').innerHTML = `
+                            <div class="result-table">
+                                <strong>勞動力成本佔總運輸的權重:</strong> <span>${(laborCostWeight * 100).toFixed(0)}%</span>
+                                <strong>未修正的勞動力基礎成本:</strong> <span>${laborCostBase.toFixed(2)} 元</span>
+                                <hr style="grid-column: 1 / span 2; border: 0; border-top: 1px dotted var(--border-color); margin: 3px 0;">
+                                <strong>最終區位實際節省百分比:</strong> <span>${laborSavingPercent.toFixed(1) + '%'}</span>
+                                <strong>勞動力成本節省金額:</strong> <span style="color: var(--labor-color); font-weight: bold;">${laborSavingAmount.toFixed(2)} 元</span>
+                            </div>
+                        `;
+                    } else {
+                        laborAnalysis.style.display = 'none';
+                    }
+
+                    // 聚集分析
+                    const agglomAnalysis = document.getElementById('agglom-analysis');
+                    const agglomSavingPercent = (1 - analysis.agglomerationFactor) * 100;
+
+                    if (agglomeration !== 'none' || analysis.agglomerationFactor < 1.0) {
+                        agglomAnalysis.style.display = 'block';
+                        agglomAnalysis.querySelector('#agglom-impact-detail').innerHTML = `
+                            <div class="result-table">
+                                <strong>聚集經濟基礎潛力:</strong> <span>${(1 - getAgglomerationFactor(agglomeration)) * 100}%</span>
+                                <strong>產業專業化程度:</strong> <span>${industrySpecialization}%</span>
+                                <hr style="grid-column: 1 / span 2; border: 0; border-top: 1px dotted var(--border-color); margin: 3px 0;">
+                                <strong>最終間接成本節省係數:</strong> <span>${agglomSavingPercent.toFixed(1) + '%'}</span>
+                                <strong>聚集經濟節省金額:</strong> <span style="color: var(--agglom-color); font-weight: bold;">${agglomSavingAmount.toFixed(2)} 元</span>
+                            </div>
+                        `;
+                    } else {
+                        agglomAnalysis.style.display = 'none';
+                    }
+
+                    // 總結
+                    let comparisonHTML = `<h4>區位決策總結</h4>`;
+
+                    if (analysis.laborLocation || analysis.agglomerationLocation) {
+                        comparisonHTML += `<p>最佳區位 (${optimal.label}) 偏離了純粹的運輸成本最低點 (P*)。</p>`;
+
+                        if (analysis.laborLocation) {
+                            comparisonHTML += `<p style="color: var(--labor-color); margin-bottom: 5px;">✓ <strong>勞動力因素：</strong> 勞動力成本節省（${laborSavingAmount.toFixed(2)}元）足以抵消增加的運輸成本，導致區位偏離。</p>`;
+                        }
+                        if (analysis.agglomerationLocation) {
+                            comparisonHTML += `<p style="color: var(--agglom-color); margin-bottom: 5px;">✓ <strong>聚集因素：</strong> 聚集經濟節省（${agglomSavingAmount.toFixed(2)}元）導致區位遷移到聚集區以最小化總成本。</p>`;
+                        }
+
+                    } else {
+                        comparisonHTML += `<p>在此情境下，<strong>運輸成本</strong>是唯一決定區位的因素。</p>`;
+                        comparisonHTML += `<p>勞動力或集聚效應不足以抵消額外運輸成本，因此區位位於純運輸最低點 P*。</p>`;
+                    }
+                    factorComparison.innerHTML = comparisonHTML;
+                } // End of else (Auto Mode)
 
 
                 // 4. 更新地圖和歷史記錄
                 drawCanvas();
 
-                if (shouldSave) {
+                if (shouldSave && !optimal.isManual) {
+                    // 僅在非手動模式下保存歷史記錄
                     saveCurrentState();
                 }
 
             }, 50);
         }
 
-        // 自動計算和存儲
-        const autoCalculateAndStore = () => {
-            calculateAndRenderResults(true);
-        };
 
         // --- 綁定事件和初始化 ---
 
@@ -1259,13 +1337,13 @@
                 { id: generateUniqueId('M'), x: 150, y: 50, weight: 3, color: '#e74c3c', label: 'A' },
                 { id: generateUniqueId('M'), x: 450, y: 50, weight: 2, color: '#2ecc71', label: 'B' }
             ];
-            market = { x: 275, y: 250, label: '市場(M)', color: '#3498db', weight: 0 };
-            optimal = { x: 0, y: 0, label: 'O', color: '#9b59b6' };
-            laborZone = { x: 100, y: 200, radius: 0 };
-            agglomerationZone = { x: 450, y: 180, radius: 0 };
+            // 保持 market 點的初始重量
+            market = { x: 275, y: 250, label: '市場(M)', color: '#3498db', weight: 3.5 };
+            optimal = { x: 0, y: 0, label: 'O', color: '#9b59b6', isManual: false };
 
             // 重置參數的 UI
-            weightLoss = 30; transportCost = 5; laborCostWeight = 0.3; laborSavings = 'none';
+            // 移除 weightLoss
+            transportCost = 5; laborCostWeight = 0.3; laborSavings = 'none';
             laborIntensity = 50; agglomeration = 'none'; industrySpecialization = 50;
 
             initResizers();
@@ -1277,7 +1355,7 @@
                 // 在寬屏模式下，canvas 應適應其父容器的高度
                 const mapSection = document.getElementById('map-section');
                 canvas.width = container.offsetWidth;
-                canvas.height = container.offsetHeight; // 首次初始化時，這裡會使用 CSS 設置的 350px 減去 padding
+                canvas.height = container.offsetHeight;
             } else {
                 // 窄屏模式下保持寬高比
                 canvas.width = container.offsetWidth;
@@ -1290,16 +1368,41 @@
         window.onload = initializeApp;
 
 
-        // --- UI 事件綁定 (保持不變) ---
+        // --- UI 事件綁定 (修復卡頓問題) ---
 
         document.getElementById('add-material-btn').addEventListener('click', function() {
             addMaterial();
         });
 
+        document.getElementById('find-optimal-btn').addEventListener('click', function() {
+            // 執行一次完整的自動計算
+            const analysis = calculateOptimalLocation();
+
+            // 確保 optimal 點是計算出來的 P*/O 點
+            optimal.x = analysis.optimalPoint.x;
+            optimal.y = analysis.optimalPoint.y;
+            optimal.label = (analysis.laborLocation || analysis.agglomerationLocation) ? 'O' : 'P*';
+            optimal.isManual = false; // 確保退出手動模式
+
+            calculateAndRenderResults(true);
+        });
+
+
         const controlElements = [
-            'weight-loss', 'transport-cost', 'labor-cost-weight',
+            'transport-cost', 'labor-cost-weight',
             'labor-savings', 'labor-intensity', 'agglomeration', 'industry-specialization'
         ];
+
+        // 專門為 market-weight 綁定事件
+        const marketWeightElement = document.getElementById('market-weight');
+        if (marketWeightElement) {
+            marketWeightElement.addEventListener('input', function(e) {
+                market.weight = parseFloat(e.target.value);
+                document.getElementById('market-weight-value').textContent = market.weight.toFixed(1) + ' 噸';
+                debouncedCalculateAndStore();
+            });
+        }
+
 
         controlElements.forEach(id => {
             const element = document.getElementById(id);
@@ -1307,7 +1410,7 @@
                 const handler = function(e) {
                     const value = e.target.value;
 
-                    document.getElementById(`${id}-value`) && (document.getElementById(`${id}-value`).textContent = id.includes('loss') || id.includes('intensity') || id.includes('specialization') ? `${value}%` : (id === 'labor-cost-weight' || id === 'transport-cost' ? parseFloat(value).toFixed(1) : value));
+                    document.getElementById(`${id}-value`) && (document.getElementById(`${id}-value`).textContent = id.includes('intensity') || id.includes('specialization') ? `${value}%` : (id === 'labor-cost-weight' || id === 'transport-cost' ? parseFloat(value).toFixed(1) : value));
 
                     if (id === 'labor-savings') {
                         document.getElementById('labor-intensity-container').style.display = value === 'none' ? 'none' : 'block';
@@ -1316,11 +1419,8 @@
                         document.getElementById('specialization-container').style.display = value === 'none' ? 'none' : 'block';
                     }
 
-                    if (id === 'weight-loss') {
-                        renderMaterialList();
-                    }
-
-                    autoCalculateAndStore();
+                    // 使用去抖函數進行計算
+                    debouncedCalculateAndStore();
                 };
 
                 element.addEventListener('input', handler);
@@ -1329,6 +1429,7 @@
                 }
             }
         });
+
 
         STEP_BACK_BTN.addEventListener('click', restorePreviousState);
         document.addEventListener('keydown', function(e) {
@@ -1366,10 +1467,14 @@
             }
         });
 
-        // --- 畫布拖曳邏輯 (修復市場點拖曳及觸控事件) ---
+        // --- 畫布拖曳邏輯 ---
 
         function findPointAt(x, y) {
-            // 檢查市場點 (市場點應優先於原料點被檢查，以確保拖曳行為的明確性)
+            // 檢查 Optimal 點 (P*/O)
+            const distOptimal = distance({x, y}, optimal);
+            if (optimal.x !== 0 && optimal.y !== 0 && distOptimal < 15) return { type: 'optimal', point: optimal };
+
+            // 檢查市場點
             const distM = distance({x, y}, market);
             if (distM < 15) return { type: 'market', point: market };
 
@@ -1406,6 +1511,14 @@
                 isDragging = true;
                 selectedPoint = clicked;
                 if (dragTimeout) clearTimeout(dragTimeout);
+
+                // 如果拖曳的是 optimal 點，切換到手動模式
+                if (selectedPoint.type === 'optimal') {
+                    optimal.isManual = true;
+                    // 清除滑塊的 debounceTimer，確保手動拖曳時不被滑塊操作干擾
+                    clearTimeout(debounceTimer);
+                    optimal.label = 'P'; // 設置臨時標籤
+                }
             }
         }
 
@@ -1425,17 +1538,36 @@
 
                 drawCanvas();
 
-                if (dragTimeout) clearTimeout(dragTimeout);
-                dragTimeout = setTimeout(autoCalculateAndStore, 150);
+                // 如果正在手動拖曳 optimal 點，則實時更新結果 (使用 runCalculationAndStore)
+                if (selectedPoint.type === 'optimal' && optimal.isManual) {
+                    if (dragTimeout) clearTimeout(dragTimeout);
+                    dragTimeout = setTimeout(() => {
+                        calculateAndRenderResults(false); // 不保存歷史記錄
+                    }, 50); // 50ms 節流
+                } else {
+                    // 其他點位的拖曳仍使用標準的 runCalculationAndStore (會保存歷史記錄)
+                    if (dragTimeout) clearTimeout(dragTimeout);
+                    dragTimeout = setTimeout(runCalculationAndStore, 150);
+                }
             }
         }
 
         function handleDragEnd() {
             if (isDragging) {
+                if (selectedPoint && selectedPoint.type === 'optimal' && optimal.isManual) {
+                    // 手動拖曳 optimal 點結束後，將其設置為非手動，並強制執行一次完整的自動計算，讓它跳回 P*/O
+                    optimal.isManual = false;
+
+                    // 執行自動計算並保存歷史
+                    runCalculationAndStore();
+                } else {
+                    // 其他點位的拖曳結束
+                    runCalculationAndStore();
+                }
+
                 isDragging = false;
                 selectedPoint = null;
                 if (dragTimeout) clearTimeout(dragTimeout);
-                autoCalculateAndStore();
             }
         }
 
@@ -1471,7 +1603,6 @@
             if (window.innerWidth > 900) {
                 // 寬屏/桌面模式：由 Resizer/容器寬度控制
                 canvas.width = container.offsetWidth;
-                // 這裡必須從容器獲取高度，因為 CSS 設置了 map-section 的高度
                 canvas.height = container.offsetHeight;
             } else {
                 // 窄屏/移動模式：固定比例
@@ -1518,33 +1649,13 @@
             // 水平 Resizer 邏輯
             mapControlResizer.addEventListener('mousedown', function(e) {
                 if (window.innerWidth < 900) return;
-                isHorizontalResizing = true;
-                startY = e.clientY;
-                startMapHeight = mapSection.offsetHeight;
-                document.body.style.userSelect = 'none';
-                document.body.style.cursor = 'ns-resize';
+                // 由於我們固定了高度，這裡不啟動 Resizer 邏輯
             });
 
             document.addEventListener('mousemove', function(e) {
                 if (isHorizontalResizing) {
                     e.preventDefault();
-                    const deltaY = e.clientY - startY;
-                    const containerHeight = mainContainer.offsetHeight;
-
-                    // 估計整個左列的垂直 padding/margin 總和，以便計算可用空間
-                    const totalPadding = 40;
-
-                    // 確保地圖高度在 150px 到容器高度的 70% 之間
-                    const maxMapHeight = containerHeight * 0.7 - totalPadding;
-                    const newMapHeight = Math.max(150, Math.min(startMapHeight + deltaY, maxMapHeight));
-
-                    mapSection.style.height = newMapHeight + 'px';
-
-                    // 更新 canvas 容器和 canvas 本身的高度
-                    canvasContainer.style.height = (newMapHeight - 20) + 'px'; // 20px 考慮 mapSection 的 top/bottom padding
-                    canvas.height = canvasContainer.offsetHeight; // 重新設置 canvas 繪圖高度
-
-                    drawCanvas();
+                    // 固定高度，無操作
                 }
 
                 if (isVerticalResizing) {
@@ -1574,10 +1685,7 @@
 
             mapControlResizer.addEventListener('touchstart', (e) => {
                 if (window.innerWidth > 900) {
-                    isHorizontalResizing = true;
-                    startY = e.touches[0].clientY;
-                    startMapHeight = mapSection.offsetHeight;
-                    e.preventDefault();
+                   // 固定高度，無操作
                 }
             });
             document.getElementById('column-resizer').addEventListener('touchstart', (e) => {
